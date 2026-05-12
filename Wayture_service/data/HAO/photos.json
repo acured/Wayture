@@ -1,0 +1,45 @@
+[
+  {
+    "index": 1,
+    "filename": "684815ed9426.jpg",
+    "url": "/static/HAO/684815ed9426.jpg",
+    "associated_location": "湖畔茶屋",
+    "associated_attraction": {
+      "id": 3,
+      "location": [
+        60.0,
+        68.0
+      ],
+      "name": "湖畔茶屋",
+      "description": "在湖边品茶，观看水上风景。",
+      "field": "湖区",
+      "cost": "0.67h",
+      "images": [
+        "https://images.unsplash.com/photo-1508830524289-0adcbe822b40?auto=format&fit=crop&w=900&q=60",
+        "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=900&q=60"
+      ],
+      "position": {
+        "top": "58%",
+        "left": "68%"
+      },
+      "color": "#3B82F6"
+    },
+    "description": "湖边茶屋与周围秋景倒映在平静的湖面上。"
+  },
+  {
+    "index": 2,
+    "filename": "21b751430832.png",
+    "url": "/static/HAO/21b751430832.png",
+    "associated_location": null,
+    "associated_attraction": {},
+    "description": "一只可爱的猫咪坐在室内地板上，背景为家居环境。"
+  },
+  {
+    "index": 3,
+    "filename": "2b0733e3ee57.png",
+    "url": "/static/HAO/2b0733e3ee57.png",
+    "associated_location": null,
+    "associated_attraction": {},
+    "description": "巨型龙虾俯视城市废墟，场景充满科幻与末世氛围。"
+  }
+]

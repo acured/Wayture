@@ -1,0 +1,22 @@
+{
+  "route_planner": {
+    "prompt_file": "route_planner.md",
+    "temperature": 0.7
+  },
+  "postcard": {
+    "prompt_file": "postcard.md",
+    "temperature": 0.8
+  },
+  "postcard_image": {
+    "prompt_file": "postcard_image.md",
+    "size": "1024x1024"
+  },
+  "vision_classify": {
+    "prompt_file": "vision_classify.md",
+    "temperature": 0.3
+  },
+  "gallery_image": {
+    "prompt_file": "gallery_image.md",
+    "size": "1024x1024"
+  }
+}
