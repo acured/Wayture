@@ -145,10 +145,6 @@ function removePoint(id: number) {
   tour.removePoint(id);
 }
 
-function selectPoint(id: number) {
-  selectedPointId.value = id;
-}
-
 function generateTour() {
   if (selectedPoints.value.length === 0) {
     return;
@@ -163,10 +159,6 @@ function onGuideComplete(settings: { nickname: string; tourStyle: string }) {
 
 function onGuideClose() {
   showGuideModal.value = false;
-}
-
-function openGuideModal() {
-  showGuideModal.value = true;
 }
 
 function toggleSelectedPopup() {

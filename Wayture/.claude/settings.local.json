@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(del \"C:\\\\Working\\\\Lina\\\\Wayture\\\\src\\\\data\\\\postcardPrompt.ts\")",
+      "Bash(del \"C:\\\\Working\\\\Lina\\\\Wayture\\\\src\\\\data\\\\map.png\")",
+      "PowerShell(Remove-Item *)"
     ]
   }
 }

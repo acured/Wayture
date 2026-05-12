@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue';
-import { tourPoints, TourPointData } from '../data/tourPoints';
+import { TourPointData } from '../data/tourPoints';
 import { useAuth } from './useAuth';
 
 type TourPoint = TourPointData;
@@ -10,7 +10,7 @@ const mapImageUrl = `${apiBase}/static/map.png`;
 const auth = useAuth();
 const currentUsername = computed(() => auth.account.value?.name || auth.account.value?.username || 'guest');
 
-const points = ref<TourPoint[]>(tourPoints);
+const points = ref<TourPoint[]>([]);
 const pointsLoading = ref(false);
 let pointsLoadPromise: Promise<void> | null = null;
 
