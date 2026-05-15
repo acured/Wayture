@@ -1,0 +1,4 @@
+Wayture_service/__pycache__/
+Wayture_service/services/__pycache__/
+Wayture_service/.claude/
+.claude/settings.local.json

@@ -5,7 +5,7 @@ import json
 import os
 
 from models import Attraction
-from services.azure_client import get_vision_client
+from services.ai import chat_completion
 from services.config import get_prompts, render_prompt
 
 
@@ -31,9 +31,7 @@ async def classify_image(
         spots=json.dumps(spots, ensure_ascii=False),
     )
 
-    client, deployment = get_vision_client()
-    resp = await client.chat.completions.create(
-        model=deployment,
+    raw = await chat_completion(
         messages=[
             {
                 "role": "user",
@@ -48,9 +46,5 @@ async def classify_image(
         ],
         temperature=cfg.get("temperature", 0.3),
     )
-
-    raw = resp.choices[0].message.content.strip()
-    if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
 
     return json.loads(raw)

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import base64
 import os
 import uuid
 from datetime import datetime, timezone
 
 from models import MemoryImageMeta, MemoryMeta, PhotoMeta
-from services.azure_client import get_postcard_client
+from services.ai import generate_image
 from services.config import get_prompts, render_prompt
 
 
@@ -19,7 +18,6 @@ async def generate_gallery_images(
     gallery_dir = os.path.join(static_dir, username, "gallery", memory_id)
     os.makedirs(gallery_dir, exist_ok=True)
 
-    client, deployment = get_postcard_client()
     cfg = get_prompts()["gallery_image"]
     memory_images: list[MemoryImageMeta] = []
 
@@ -33,26 +31,20 @@ async def generate_gallery_images(
             description=description,
         )
 
-        resp = await client.images.generate(
-            model=deployment,
+        photo_path = os.path.join(static_dir, photo.url.lstrip("/").replace("static/", "", 1))
+        with open(photo_path, "rb") as f:
+            source_bytes = f.read()
+
+        image_bytes_list = await generate_image(
             prompt=prompt,
             size=cfg.get("size", "1024x1024"),
-            n=1,
+            input_images=[source_bytes],
         )
 
-        image_data = resp.data[0]
         filename = f"gallery_{idx}_{uuid.uuid4().hex[:8]}.png"
         filepath = os.path.join(gallery_dir, filename)
-
-        if hasattr(image_data, "b64_json") and image_data.b64_json:
-            with open(filepath, "wb") as f:
-                f.write(base64.b64decode(image_data.b64_json))
-        elif hasattr(image_data, "url") and image_data.url:
-            import httpx
-            async with httpx.AsyncClient() as http:
-                img_resp = await http.get(image_data.url)
-                with open(filepath, "wb") as f:
-                    f.write(img_resp.content)
+        with open(filepath, "wb") as f:
+            f.write(image_bytes_list[0])
 
         generated_url = f"/static/{username}/gallery/{memory_id}/{filename}"
 

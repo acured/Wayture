@@ -44,7 +44,7 @@ _vision_client: AsyncAzureOpenAI | None = None
 _vision_deployment: str = ""
 
 
-def get_vision_client() -> tuple[AsyncAzureOpenAI, str]:
+def get_chat_client() -> tuple[AsyncAzureOpenAI, str]:
     global _vision_client, _vision_deployment
     if _vision_client is None:
         url = os.getenv("VITE_VISION_API_ENDPOINT", "")
@@ -65,7 +65,7 @@ _postcard_client: AsyncAzureOpenAI | None = None
 _postcard_deployment: str = ""
 
 
-def get_postcard_client() -> tuple[AsyncAzureOpenAI, str]:
+def get_image_client() -> tuple[AsyncAzureOpenAI, str]:
     global _postcard_client, _postcard_deployment
     if _postcard_client is None:
         url = os.getenv("VITE_POSTCARD_API_ENDPOINT", "")
