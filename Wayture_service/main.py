@@ -11,7 +11,9 @@ from fastapi.staticfiles import StaticFiles
 
 from models import (
     Attraction,
+    GenerateAlbumRequest,
     GenerateGalleryRequest,
+    GenerateJournalRequest,
     GeneratePostcardRequest,
     GalleryResponse,
     MemoryMeta,
@@ -21,7 +23,7 @@ from models import (
     PostcardResponse,
 )
 from services.config import get_map_meta
-from services.gallery import generate_gallery_images
+from services.gallery import generate_album_images, generate_gallery_images, generate_journal_image, get_album_prompts
 from services.postcard import generate_postcard
 from services.route_planner import plan_route
 from services.vision import classify_image
@@ -193,7 +195,46 @@ async def api_generate_gallery(req: GenerateGalleryRequest):
     return GalleryResponse(username=req.username, memory=memory)
 
 
-# ── 6. 获取所有回忆 ──────────────────────────────────────────────
+# ── 6. 生成相册（差异化 prompt） ─────────────────────────────────
+
+@app.post("/api/generate-album", response_model=GalleryResponse)
+async def api_generate_album(req: GenerateAlbumRequest):
+    photos = _load_photos(req.username)
+    if not photos:
+        raise HTTPException(status_code=404, detail="该用户没有上传过照片")
+
+    selected = [PhotoMeta(**p) for p in photos if p["index"] in req.selected_indices]
+    if not selected:
+        raise HTTPException(status_code=400, detail="未找到所选照片")
+
+    prompt_specs = get_album_prompts(selected)
+    memory = await generate_album_images(req.username, prompt_specs, str(STATIC_DIR))
+
+    _save_memory(req.username, memory.model_dump())
+
+    return GalleryResponse(username=req.username, memory=memory)
+
+
+# ── 7. 生成手账（多图合一） ──────────────────────────────────────
+
+@app.post("/api/generate-journal", response_model=GalleryResponse)
+async def api_generate_journal(req: GenerateJournalRequest):
+    photos = _load_photos(req.username)
+    if not photos:
+        raise HTTPException(status_code=404, detail="该用户没有上传过照片")
+
+    selected = [PhotoMeta(**p) for p in photos if p["index"] in req.selected_indices]
+    if not selected:
+        raise HTTPException(status_code=400, detail="未找到所选照片")
+
+    memory = await generate_journal_image(req.username, selected, str(STATIC_DIR))
+
+    _save_memory(req.username, memory.model_dump())
+
+    return GalleryResponse(username=req.username, memory=memory)
+
+
+# ── 8. 获取所有回忆 ──────────────────────────────────────────────
 
 @app.get("/api/memories/{username}", response_model=list[MemoryMeta])
 async def api_get_memories(username: str):

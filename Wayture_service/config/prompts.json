@@ -18,5 +18,13 @@
   "gallery_image": {
     "prompt_file": "gallery_image.md",
     "size": "1024x1024"
+  },
+  "album_style_1": {
+    "prompt_file": "album_style_1.md",
+    "size": "1024x1024"
+  },
+  "album_style_2": {
+    "prompt_file": "album_style_2.md",
+    "size": "1024x1024"
   }
 }

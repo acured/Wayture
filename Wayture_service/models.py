@@ -103,3 +103,24 @@ class MemoryMeta(BaseModel):
 class GalleryResponse(BaseModel):
     username: str
     memory: MemoryMeta
+
+
+# ── 7. 生成相册（差异化 prompt） ─────────────────────────────────
+
+class AlbumPromptSpec(BaseModel):
+    prompt_name: str
+    prompt: str
+    photo: PhotoMeta
+    size: str = "1024x1024"
+
+
+class GenerateAlbumRequest(BaseModel):
+    username: str
+    selected_indices: list[int]
+
+
+# ── 8. 生成手账（多图合一） ──────────────────────────────────────
+
+class GenerateJournalRequest(BaseModel):
+    username: str
+    selected_indices: list[int]
