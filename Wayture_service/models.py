@@ -124,3 +124,20 @@ class GenerateAlbumRequest(BaseModel):
 class GenerateJournalRequest(BaseModel):
     username: str
     selected_indices: list[int]
+
+
+# ── 9. 异步图片任务 ─────────────────────────────────────────────
+
+class ImageTaskResponse(BaseModel):
+    task_id: str
+    username: str
+    task_type: str
+    status: str
+
+
+class TaskMeta(BaseModel):
+    task_id: str
+    task_type: str
+    status: str
+    created_at: str
+    result: Optional[dict[str, Any]] = None

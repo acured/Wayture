@@ -16,18 +16,20 @@ from models import (
     GenerateGalleryRequest,
     GenerateJournalRequest,
     GeneratePostcardRequest,
-    GalleryResponse,
+    ImageTaskResponse,
     MemoryMeta,
     PhotoMeta,
     PlanRouteRequest,
     PlanRouteResponse,
     PostcardResponse,
+    TaskMeta,
 )
 from services.blob_storage import download_blob, read_json, upload_blob, write_json
 from services.config import get_map_meta
-from services.gallery import generate_album_images, generate_gallery_images, generate_journal_image, get_album_prompts
-from services.postcard import generate_postcard
+from services.gallery import get_album_prompts, prepare_album, prepare_gallery, prepare_journal
+from services.postcard import prepare_postcard
 from services.route_planner import plan_route
+from services.task_manager import create_task, get_task, get_tasks
 from services.vision import classify_image
 
 load_dotenv()
@@ -73,21 +75,21 @@ async def serve_static(path: str):
 # ── helpers ──────────────────────────────────────────────────────
 
 async def _load_photos(username: str) -> list[dict]:
-    return await read_json("data", f"{username}/photos.json")
+    return await read_json("data", f"{username}/photos/photos.json")
 
 
 async def _save_photos(username: str, photos: list[dict]) -> None:
-    await write_json("data", f"{username}/photos.json", photos)
+    await write_json("data", f"{username}/photos/photos.json", photos)
 
 
 async def _load_memories(username: str) -> list[dict]:
-    return await read_json("data", f"{username}/memories.json")
+    return await read_json("data", f"{username}/memories/memories.json")
 
 
 async def _save_memory(username: str, memory: dict) -> None:
     memories = await _load_memories(username)
     memories.append(memory)
-    await write_json("data", f"{username}/memories.json", memories)
+    await write_json("data", f"{username}/memories/memories.json", memories)
 
 
 # ── 0. 获取地图景点 meta ─────────────────────────────────────────
@@ -104,11 +106,19 @@ async def api_plan_route(req: PlanRouteRequest):
     return await plan_route(req.username, req.path_info)
 
 
-# ── 2. 生成明信片 ────────────────────────────────────────────────
+# ── 2. 生成明信片（异步：chat 同步 + 图片入队）────────────────────
 
-@app.post("/api/generate-postcard", response_model=PostcardResponse)
+@app.post("/api/generate-postcard")
 async def api_generate_postcard(req: GeneratePostcardRequest):
-    return await generate_postcard(req.username, req.route_plan, req.attractions, req.addition_prompt)
+    response, task_data = await prepare_postcard(
+        req.username, req.route_plan, req.attractions, req.addition_prompt,
+    )
+    task_id = await create_task(req.username, "postcard", task_data)
+
+    return {
+        **response.model_dump(),
+        "image_task_id": task_id,
+    }
 
 
 # ── 3. 上传图片 ──────────────────────────────────────────────────
@@ -123,7 +133,7 @@ async def api_upload_image(
     safe_name = f"{uuid.uuid4().hex[:12]}{ext}"
 
     content = await file.read()
-    await upload_blob("data", f"{username}/{safe_name}", content, content_type=file.content_type)
+    await upload_blob("data", f"{username}/photos/{safe_name}", content, content_type=file.content_type)
 
     attractions = get_map_meta()
     if map_meta:
@@ -151,7 +161,7 @@ async def api_upload_image(
     meta = PhotoMeta(
         index=next_index,
         filename=safe_name,
-        url=f"/static/{username}/{safe_name}",
+        url=f"/static/{username}/photos/{safe_name}",
         associated_location=classification.get("attraction_name") or None,
         associated_attraction=matched_attraction,
         description=classification.get("description", ""),
@@ -170,9 +180,9 @@ async def api_get_images(username: str):
     return await _load_photos(username)
 
 
-# ── 5. 生成图册（回忆） ──────────────────────────────────────────
+# ── 5. 生成图册（异步入队）────────────────────────────────────────
 
-@app.post("/api/generate-gallery", response_model=GalleryResponse)
+@app.post("/api/generate-gallery", response_model=ImageTaskResponse)
 async def api_generate_gallery(req: GenerateGalleryRequest):
     photos = await _load_photos(req.username)
     if not photos:
@@ -182,16 +192,17 @@ async def api_generate_gallery(req: GenerateGalleryRequest):
     if not selected:
         raise HTTPException(status_code=400, detail="未找到所选照片")
 
-    memory = await generate_gallery_images(req.username, selected)
+    task_data = prepare_gallery(req.username, selected)
+    task_id = await create_task(req.username, "gallery", task_data)
 
-    await _save_memory(req.username, memory.model_dump())
+    return ImageTaskResponse(
+        task_id=task_id, username=req.username, task_type="gallery", status="pending",
+    )
 
-    return GalleryResponse(username=req.username, memory=memory)
 
+# ── 6. 生成相册（异步入队）────────────────────────────────────────
 
-# ── 6. 生成相册（差异化 prompt） ─────────────────────────────────
-
-@app.post("/api/generate-album", response_model=GalleryResponse)
+@app.post("/api/generate-album", response_model=ImageTaskResponse)
 async def api_generate_album(req: GenerateAlbumRequest):
     photos = await _load_photos(req.username)
     if not photos:
@@ -202,16 +213,17 @@ async def api_generate_album(req: GenerateAlbumRequest):
         raise HTTPException(status_code=400, detail="未找到所选照片")
 
     prompt_specs = get_album_prompts(selected)
-    memory = await generate_album_images(req.username, prompt_specs)
+    task_data = prepare_album(req.username, prompt_specs)
+    task_id = await create_task(req.username, "album", task_data)
 
-    await _save_memory(req.username, memory.model_dump())
+    return ImageTaskResponse(
+        task_id=task_id, username=req.username, task_type="album", status="pending",
+    )
 
-    return GalleryResponse(username=req.username, memory=memory)
 
+# ── 7. 生成手账（异步入队）────────────────────────────────────────
 
-# ── 7. 生成手账（多图合一） ──────────────────────────────────────
-
-@app.post("/api/generate-journal", response_model=GalleryResponse)
+@app.post("/api/generate-journal", response_model=ImageTaskResponse)
 async def api_generate_journal(req: GenerateJournalRequest):
     photos = await _load_photos(req.username)
     if not photos:
@@ -221,11 +233,12 @@ async def api_generate_journal(req: GenerateJournalRequest):
     if not selected:
         raise HTTPException(status_code=400, detail="未找到所选照片")
 
-    memory = await generate_journal_image(req.username, selected)
+    task_data = prepare_journal(req.username, selected)
+    task_id = await create_task(req.username, "journal", task_data)
 
-    await _save_memory(req.username, memory.model_dump())
-
-    return GalleryResponse(username=req.username, memory=memory)
+    return ImageTaskResponse(
+        task_id=task_id, username=req.username, task_type="journal", status="pending",
+    )
 
 
 # ── 8. 获取所有回忆 ──────────────────────────────────────────────
@@ -233,6 +246,21 @@ async def api_generate_journal(req: GenerateJournalRequest):
 @app.get("/api/memories/{username}", response_model=list[MemoryMeta])
 async def api_get_memories(username: str):
     return await _load_memories(username)
+
+
+# ── 9. 任务查询 ──────────────────────────────────────────────────
+
+@app.get("/api/tasks/{username}", response_model=list[TaskMeta])
+async def api_get_tasks(username: str):
+    return await get_tasks(username)
+
+
+@app.get("/api/tasks/{username}/{task_id}", response_model=TaskMeta)
+async def api_get_task(username: str, task_id: str):
+    task = await get_task(username, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    return task
 
 
 # ── 启动入口 ─────────────────────────────────────────────────────

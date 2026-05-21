@@ -1,6 +1,7 @@
 """
 Wayture Service 实际 API 测试脚本
 需要先启动服务: py -m uvicorn main:app --reload
+需要先启动 worker: py worker.py
 
 运行方式: py test_real_api.py
 """
@@ -9,8 +10,9 @@ import httpx
 import json
 import os
 import sys
+import time
 
-BASE_URL = "http://127.0.0.1:8001"
+BASE_URL = "http://127.0.0.1:8002"
 
 
 def separator(title: str):
@@ -24,7 +26,6 @@ def print_json(data):
 
 
 def verify_url(client: httpx.Client, url: str, label: str = ""):
-    """GET a URL and verify it returns 200."""
     full = url if url.startswith("http") else f"{BASE_URL}{url}"
     resp = client.get(full, timeout=300)
     tag = f" ({label})" if label else ""
@@ -34,59 +35,71 @@ def verify_url(client: httpx.Client, url: str, label: str = ""):
         print(f"  ❌ GET {url}{tag} -> {resp.status_code}")
 
 
-# ── 0. 测试获取地图景点 meta ────────────────────────────────────
+def poll_task(client: httpx.Client, username: str, task_id: str, timeout: int = 600) -> dict | None:
+    """轮询任务状态直到完成或超时。"""
+    url = f"{BASE_URL}/api/tasks/{username}/{task_id}"
+    start = time.time()
+    while time.time() - start < timeout:
+        resp = client.get(url, timeout=30)
+        if resp.status_code != 200:
+            print(f"  ❌ 查询任务失败: {resp.status_code}")
+            return None
+        task = resp.json()
+        status = task.get("status", "")
+        print(f"  ⏳ 任务 {task_id}: {status}")
+        if status == "completed":
+            return task
+        if status == "failed":
+            print(f"  ❌ 任务失败: {task.get('result', {}).get('error', '')[:200]}")
+            return task
+        time.sleep(5)
+    print(f"  ❌ 任务超时 ({timeout}s)")
+    return None
+
+
+# ── 0. 获取地图 meta ───────────────────────────────────────────
 
 def test_get_map_meta(client: httpx.Client) -> list:
     separator("0. 获取地图 meta  GET /api/map-meta")
-
     resp = client.get(f"{BASE_URL}/api/map-meta", timeout=10)
-
     print(f"状态码: {resp.status_code}")
     if resp.status_code == 200:
         data = resp.json()
         print_json(data)
         print(f"✅ 获取地图 meta 成功，共 {len(data)} 个景点")
         return data
-    else:
-        print(f"❌ 失败: {resp.text}")
-        return []
+    print(f"❌ 失败: {resp.text}")
+    return []
 
 
-# ── 0.5 测试本地静态资源代理 ────────────────────────────────────
+# ── 0.5 本地静态资源 ───────────────────────────────────────────
 
 def test_local_static(client: httpx.Client):
     separator("0.5. 本地静态资源  GET /static/map.jpg")
     verify_url(client, "/static/map.jpg", "local asset via proxy")
 
 
-# ── 1. 测试规划路线 ─────────────────────────────────────────────
+# ── 1. 规划路线 ────────────────────────────────────────────────
 
 def test_plan_route(client: httpx.Client, attractions: list) -> dict | None:
     separator("1. 规划路线  POST /api/plan-route")
-
-    payload = {
-        "username": "demo_user",
-        "path_info": attractions,
-    }
-
+    payload = {"username": "demo_user", "path_info": attractions}
     print(f"请求: {json.dumps(payload, ensure_ascii=False)[:200]}...")
     resp = client.post(f"{BASE_URL}/api/plan-route", json=payload, timeout=300)
-
     print(f"状态码: {resp.status_code}")
     if resp.status_code == 200:
         data = resp.json()
         print_json(data)
         print("✅ 规划路线成功")
         return data
-    else:
-        print(f"❌ 失败: {resp.text}")
-        return None
+    print(f"❌ 失败: {resp.text}")
+    return None
 
 
-# ── 2. 测试生成明信片 ────────────────────────────────────────────
+# ── 2. 生成明信片（异步）────────────────────────────────────────
 
 def test_generate_postcard(client: httpx.Client, attractions: list, route_data: dict | None):
-    separator("2. 生成明信片  POST /api/generate-postcard")
+    separator("2. 生成明信片  POST /api/generate-postcard (异步)")
 
     if route_data is None:
         route_plan = [
@@ -105,21 +118,27 @@ def test_generate_postcard(client: httpx.Client, attractions: list, route_data: 
 
     print(f"请求: {json.dumps(payload, ensure_ascii=False)[:200]}...")
     resp = client.post(f"{BASE_URL}/api/generate-postcard", json=payload, timeout=300)
-
     print(f"状态码: {resp.status_code}")
+
     if resp.status_code == 200:
         data = resp.json()
         print_json(data)
-        image_url = data.get("image_url", "")
-        print(f"明信片图片地址: {image_url}")
-        if image_url:
-            verify_url(client, image_url, "postcard image from blob")
-        print("✅ 生成明信片成功")
+        task_id = data.get("image_task_id", "")
+        print(f"✅ 明信片文案已生成，图片任务: {task_id}")
+
+        if task_id:
+            print("等待图片生成...")
+            task = poll_task(client, "demo_user", task_id)
+            if task and task.get("status") == "completed":
+                image_url = task.get("result", {}).get("image_url", "")
+                if image_url:
+                    verify_url(client, image_url, "postcard image from blob")
+                print("✅ 明信片图片生成完成")
     else:
         print(f"❌ 失败: {resp.text}")
 
 
-# ── 3. 测试上传图片 ──────────────────────────────────────────────
+# ── 3. 上传图片 ────────────────────────────────────────────────
 
 def test_upload_image(client: httpx.Client):
     separator("3. 上传图片  POST /api/upload-image")
@@ -178,28 +197,25 @@ def test_upload_image(client: httpx.Client):
         print(f"❌ 失败: {resp.text}")
 
 
-# ── 4. 测试获取图片列表 ──────────────────────────────────────────
+# ── 4. 获取图片列表 ────────────────────────────────────────────
 
 def test_get_images(client: httpx.Client) -> list:
     separator("4. 获取图片  GET /api/images/demo_user")
-
     resp = client.get(f"{BASE_URL}/api/images/demo_user", timeout=10)
-
     print(f"状态码: {resp.status_code}")
     if resp.status_code == 200:
         data = resp.json()
         print_json(data)
         print(f"✅ 获取图片成功，共 {len(data)} 张")
         return data
-    else:
-        print(f"❌ 失败: {resp.text}")
-        return []
+    print(f"❌ 失败: {resp.text}")
+    return []
 
 
-# ── 5. 测试生成图册 ──────────────────────────────────────────────
+# ── 5. 生成图册（异步）─────────────────────────────────────────
 
 def test_generate_gallery(client: httpx.Client, photos: list):
-    separator("5. 生成图册（回忆）  POST /api/generate-gallery")
+    separator("5. 生成图册  POST /api/generate-gallery (异步)")
 
     if not photos:
         print("⚠️  没有已上传的照片，跳过图册生成测试")
@@ -210,29 +226,33 @@ def test_generate_gallery(client: httpx.Client, photos: list):
 
     print(f"请求: {json.dumps(payload, ensure_ascii=False)}")
     resp = client.post(f"{BASE_URL}/api/generate-gallery", json=payload, timeout=300)
-
     print(f"状态码: {resp.status_code}")
+
     if resp.status_code == 200:
         data = resp.json()
-        memory = data.get("memory", {})
         print_json(data)
-        print(f"回忆 ID: {memory.get('id')}")
-        print(f"回忆标题: {memory.get('title')}")
-        print(f"生成图片数: {memory.get('generated_image_count')}")
-        for img in memory.get("images", []):
-            verify_url(client, img.get("generated_url", ""), "gallery image from blob")
-        print("✅ 生成图册成功")
+        task_id = data.get("task_id", "")
+        print(f"✅ 图册任务已提交: {task_id}")
+
+        if task_id:
+            print("等待图册生成...")
+            task = poll_task(client, "demo_user", task_id)
+            if task and task.get("status") == "completed":
+                memory = task.get("result", {}).get("memory", {})
+                print(f"回忆 ID: {memory.get('id')}")
+                print(f"回忆标题: {memory.get('title')}")
+                for img in memory.get("images", []):
+                    verify_url(client, img.get("generated_url", ""), "gallery image from blob")
+                print("✅ 图册生成完成")
     else:
         print(f"❌ 失败: {resp.text}")
 
 
-# ── 6. 测试获取所有回忆 ──────────────────────────────────────────
+# ── 6. 获取所有回忆 ────────────────────────────────────────────
 
 def test_get_memories(client: httpx.Client):
     separator("6. 获取所有回忆  GET /api/memories/demo_user")
-
     resp = client.get(f"{BASE_URL}/api/memories/demo_user", timeout=10)
-
     print(f"状态码: {resp.status_code}")
     if resp.status_code == 200:
         data = resp.json()
@@ -244,7 +264,23 @@ def test_get_memories(client: httpx.Client):
         print(f"❌ 失败: {resp.text}")
 
 
-# ── 主流程 ───────────────────────────────────────────────────────
+# ── 7. 获取所有任务 ────────────────────────────────────────────
+
+def test_get_tasks(client: httpx.Client):
+    separator("7. 获取所有任务  GET /api/tasks/demo_user")
+    resp = client.get(f"{BASE_URL}/api/tasks/demo_user", timeout=10)
+    print(f"状态码: {resp.status_code}")
+    if resp.status_code == 200:
+        data = resp.json()
+        print_json(data)
+        print(f"✅ 获取任务成功，共 {len(data)} 个任务")
+        for t in data:
+            print(f"  - [{t['task_id']}] {t['task_type']}  状态={t['status']}")
+    else:
+        print(f"❌ 失败: {resp.text}")
+
+
+# ── 主流程 ─────────────────────────────────────────────────────
 
 def main():
     print("Wayture Service 实际 API 测试")
@@ -260,36 +296,40 @@ def main():
 
         print("✅ 服务已连接\n")
 
-        # 0. 先获取地图 meta（后续接口复用）
+        # 0. 获取地图 meta
         attractions = test_get_map_meta(client)
-        input("按回车继续测试后续接口...")
+        input("按回车继续...")
 
-        # 0.5. 测试本地静态资源代理
+        # 0.5 本地静态资源
         test_local_static(client)
-        input("按回车继续测试后续接口...")
+        input("按回车继续...")
 
         # 1. 规划路线
         route_data = test_plan_route(client, attractions)
-        input("按回车继续测试后续接口...")
+        input("按回车继续...")
 
-        # 2. 生成明信片
+        # 2. 生成明信片（异步）
         test_generate_postcard(client, attractions, route_data)
-        input("按回车继续测试后续接口...")
+        input("按回车继续...")
 
         # 3. 上传图片
         test_upload_image(client)
-        input("按回车继续测试后续接口...")
+        input("按回车继续...")
 
         # 4. 获取图片列表
         photos = test_get_images(client)
-        input("按回车继续测试后续接口...")
+        input("按回车继续...")
 
-        # 5. 生成图册（回忆）
+        # 5. 生成图册（异步）
         test_generate_gallery(client, photos)
-        input("按回车继续测试后续接口...")
+        input("按回车继续...")
 
         # 6. 获取所有回忆
         test_get_memories(client)
+        input("按回车继续...")
+
+        # 7. 获取所有任务
+        test_get_tasks(client)
 
         separator("全部测试完成")
 

@@ -6,18 +6,18 @@ from pathlib import Path
 
 from models import Attraction, PlannedStop, PostcardResponse
 from services.ai import chat_completion, generate_image
-from services.blob_storage import upload_blob, upload_text
+from services.blob_storage import upload_blob, upload_text, read_json
 from services.config import get_prompts, render_prompt
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 
-async def generate_postcard(
+async def prepare_postcard(
     username: str,
     route_plan: list[PlannedStop],
     attractions: list[Attraction],
     addition_prompt: str = "",
-) -> PostcardResponse:
+) -> tuple[PostcardResponse, dict]:
     route_info = [
         {"order": s.order, "name": s.attraction.name, "tips": s.tips}
         for s in route_plan
@@ -27,7 +27,7 @@ async def generate_postcard(
         for a in attractions
     ]
 
-    # ── 1. 用 chat 模型生成明信片文案 ────────────────────────────
+    # ── 1. 用 chat 模型生成明信片文案（同步，快速）────────────────
     cfg_text = get_prompts()["postcard"]
     prompt = render_prompt(
         "postcard",
@@ -50,12 +50,11 @@ async def generate_postcard(
     stops_list = data.get("stops", [])
     farewell = data.get("farewell", "")
 
-    # ── 2. 用 image 模型生成明信片图片 ───────────────────────────
+    # ── 2. 构建 image prompt（不执行生成）─────────────────────────
     stops_summary = "、".join(s.get("name", "") for s in stops_list)
 
     attr_by_name = {a.name: a for a in attractions}
     cards: list[str] = []
-    input_images: list[bytes] = []
     photo_idx = 1
     for i, stop in enumerate(stops_list, 1):
         name = stop.get("name", "")
@@ -68,15 +67,7 @@ async def generate_postcard(
                 f"「项目标签:{attr.field}」、"
                 f"「景点照片：图{photo_idx}是景点照片」"
             )
-            photo_dir = STATIC_DIR / "map_data" / str(attr.id)
-            if photo_dir.exists():
-                photos = sorted(
-                    p for p in photo_dir.iterdir()
-                    if p.suffix.lower() in (".jpg", ".jpeg", ".png")
-                )
-                if photos:
-                    input_images.append(photos[0].read_bytes())
-                    photo_idx += 1
+            photo_idx += 1
         else:
             card = f"-「{i}」：「项目名称：{name}」"
         cards.append(card)
@@ -92,27 +83,45 @@ async def generate_postcard(
         addition_prompt=addition_prompt,
     )
 
-    image_bytes_list = await generate_image(
-        prompt=img_prompt,
-        size=cfg_img.get("size", "1024x1024"),
-        input_images=input_images if input_images else None,
-    )
-
     await upload_text("data", f"{username}/postcard/image_prompt.txt", img_prompt)
 
-    filename = f"postcard_{uuid.uuid4().hex[:8]}.png"
-    await upload_blob("data", f"{username}/{filename}", image_bytes_list[0], content_type="image/png")
+    task_data = {
+        "prompt": img_prompt,
+        "size": cfg_img.get("size", "1024x1024"),
+        "postcard_data": {
+            "title": title,
+            "greeting": greeting,
+            "stops": stops_list,
+            "farewell": farewell,
+        },
+        "addition_prompt": addition_prompt,
+    }
 
-    prompt_txt_name = filename.replace(".png", ".txt")
-    await upload_text("data", f"{username}/{prompt_txt_name}", addition_prompt or "")
-
-    image_url = f"/static/{username}/{filename}"
-
-    return PostcardResponse(
+    response = PostcardResponse(
         username=username,
         title=title,
         greeting=greeting,
         stops=stops_list,
         farewell=farewell,
-        image_url=image_url,
+        image_url="",
     )
+
+    return response, task_data
+
+
+async def execute_postcard_task(username: str, task_data: dict) -> dict:
+    prompt = task_data["prompt"]
+    size = task_data.get("size", "1024x1024")
+
+    image_bytes_list = await generate_image(prompt=prompt, size=size)
+
+    filename = f"{uuid.uuid4().hex[:8]}.png"
+    await upload_blob("data", f"{username}/postcard/{filename}", image_bytes_list[0], content_type="image/png")
+
+    addition_prompt = task_data.get("addition_prompt", "")
+    prompt_txt_name = filename.replace(".png", ".txt")
+    await upload_text("data", f"{username}/postcard/{prompt_txt_name}", addition_prompt or "")
+
+    image_url = f"/static/{username}/postcard/{filename}"
+
+    return {"image_url": image_url}
