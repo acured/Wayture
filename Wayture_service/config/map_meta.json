@@ -1,4 +1,4 @@
-[
+﻿[
   {
     "id": 1,
     "name": "树灵杰途",
@@ -120,7 +120,7 @@
     "cost": "0.5h",
     "note": "躺平时长结合当天约300人客流量下，单场表演观看及周边景观打卡的平均停留时间进行估算。",
     "images": [
-      "static/map_data/6/φ║║σ╣│σî║µòêµ₧£σ¢╛.jpg"
+      "static/map_data/6/a0b0c0db.jpg"
     ],
     "sub_description": "北京温榆河附近·尺木神奇世界",
     "location": [
@@ -203,7 +203,7 @@
     "cost": "1h",
     "note": "项目名称根据现场指示牌”炫彩绳网低幼童区”识别；游玩时长参考同类型儿童绳网探险项目的平均停留时间估算。",
     "images": [
-      "static/map_data/9/φ║║σ╣│σî║µòêµ₧£σ¢╛.jpg"
+      "static/map_data/9/a0b0c0dc.jpg"
     ],
     "sub_description": "北京温榆河附近·尺木神奇世界",
     "location": [
@@ -338,7 +338,7 @@
     "cost": "0.5h",
     "note": "结合当天300人的总客流量估算，排队及体验过程通常可在半小时内完成。",
     "images": [
-      "static/map_data/14/τ¡╛σê░σî║τä⌐σ«╢φ«ñφ»üσåèτñ╝σôüσàæµìóσî║µòêµ₧£σ¢╛.jpg"
+      "static/map_data/14/a0b0c0d0.jpg"
     ],
     "sub_description": "北京温榆河附近·尺木神奇世界",
     "location": [
@@ -446,10 +446,10 @@
     "cost": "0.5h",
     "note": "结合当天300人的总客流量估算，排队及体验过程通常可在半小时内完成。",
     "images": [
-      "static/map_data/18/µ»╜µ¡ñσªéθú₧σåèσëæτäëµòêµ₧£σ¢╛.jpg",
-      "static/map_data/18/σà╡σ╝║θ⌐¼σú«µòêµ₧£σ¢╛.jpg",
-      "static/map_data/18/σ╣│φííσè¢σñºµîæµêÿµòêµ₧£σ¢╛.jpg",
-      "static/map_data/18/τ»«τéâτ╗òσ╣▓σåèς╣æς╣ôτéâφ┐éφ╛ôµòêµ₧£σ¢╛.jpg"
+      "static/map_data/18/a0b0c0d1.jpg",
+      "static/map_data/18/a0b0c0d2.jpg",
+      "static/map_data/18/a0b0c0d3.jpg",
+      "static/map_data/18/a0b0c0d4.jpg"
     ],
     "sub_description": "北京温榆河附近·尺木神奇世界",
     "location": [
@@ -473,7 +473,7 @@
     "cost": "0.5h",
     "note": "结合当天300人的总客流量估算，排队及体验过程通常可在半小时内完成。",
     "images": [
-      "static/map_data/19/σ╝æµü»µëïσ╖ñσî║µòêµ₧£σ¢╛.jpg"
+      "static/map_data/19/a0b0c0d5.jpg"
     ],
     "sub_description": "北京温榆河附近·尺木神奇世界",
     "location": [
@@ -519,7 +519,7 @@
     "cost": "0.5h",
     "note": "结合当天300人的总客流量估算，排队及体验过程通常可在半小时内完成。",
     "images": [
-      "static/map_data/21/σà¼τ¢èµæèς╜ìµ₧ùφì½θüôσ«₧µö»τàºτëç.jpg"
+      "static/map_data/21/a0b0c0d6.jpg"
     ],
     "sub_description": "北京温榆河附近·尺木神奇世界",
     "location": [
@@ -543,8 +543,8 @@
     "cost": "0.5h",
     "note": "结合当天300人的总客流量估算，排队及体验过程通常可在半小时内完成。",
     "images": [
-      "static/map_data/22/σà¼τ¢èφ«▓σáéσåèµëïσ╖ñσî║µòêµ₧£σ¢╛.jpg",
-      "static/map_data/22/σà¼τ¢èφ«▓σáéσåèµëïσ╖ñσî║σ«₧µö»τàºτëç.jpg"
+      "static/map_data/22/a0b0c0d7.jpg",
+      "static/map_data/22/a0b0c0d8.jpg"
     ],
     "sub_description": "北京温榆河附近·尺木神奇世界",
     "location": [
@@ -569,7 +569,7 @@
     "cost": "0.5h",
     "note": "结合当天300人的总客流量估算，排队及体验过程通常可在半小时内完成。",
     "images": [
-      "static/map_data/24/σ░åθ╗äθ╕¡σààµ░öσƒäσáíµòêµ₧£σ¢╛.jpg"
+      "static/map_data/24/a0b0c0d9.jpg"
     ],
     "sub_description": "北京温榆河附近·尺木神奇世界",
     "location": [
@@ -593,7 +593,7 @@
     "cost": "0.5h",
     "note": "结合当天300人的总客流量估算，排队及体验过程通常可在半小时内完成。",
     "images": [
-      "static/map_data/25/σà¼τ¢èφ«▓σáéσåèµëïσ╖ñσî║µòêµ₧£σ¢╛.jpg"
+      "static/map_data/25/a0b0c0da.jpg"
     ],
     "sub_description": "北京温榆河附近·尺木神奇世界",
     "location": [
