@@ -1,22 +1,23 @@
 from __future__ import annotations
 
-import os
+import math
 import uuid
 from datetime import datetime, timezone
+from io import BytesIO
+
+from PIL import Image
 
 from models import AlbumPromptSpec, MemoryImageMeta, MemoryMeta, PhotoMeta
 from services.ai import generate_image
+from services.blob_storage import download_blob, upload_blob
 from services.config import get_prompts, render_prompt
 
 
 async def generate_gallery_images(
     username: str,
     photos: list[PhotoMeta],
-    static_dir: str,
 ) -> MemoryMeta:
     memory_id = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S") + "_" + uuid.uuid4().hex[:6]
-    gallery_dir = os.path.join(static_dir, username, "gallery", memory_id)
-    os.makedirs(gallery_dir, exist_ok=True)
 
     cfg = get_prompts()["gallery_image"]
     memory_images: list[MemoryImageMeta] = []
@@ -31,9 +32,8 @@ async def generate_gallery_images(
             description=description,
         )
 
-        photo_path = os.path.join(static_dir, photo.url.lstrip("/").replace("static/", "", 1))
-        with open(photo_path, "rb") as f:
-            source_bytes = f.read()
+        blob_path = photo.url.lstrip("/").replace("static/", "", 1)
+        source_bytes = await download_blob("data", blob_path)
 
         image_bytes_list = await generate_image(
             prompt=prompt,
@@ -42,9 +42,8 @@ async def generate_gallery_images(
         )
 
         filename = f"gallery_{idx}_{uuid.uuid4().hex[:8]}.png"
-        filepath = os.path.join(gallery_dir, filename)
-        with open(filepath, "wb") as f:
-            f.write(image_bytes_list[0])
+        out_blob = f"{username}/gallery/{memory_id}/{filename}"
+        await upload_blob("data", out_blob, image_bytes_list[0], content_type="image/png")
 
         generated_url = f"/static/{username}/gallery/{memory_id}/{filename}"
 
@@ -116,20 +115,16 @@ def get_album_prompts(photos: list[PhotoMeta]) -> list[AlbumPromptSpec]:
 async def generate_album_images(
     username: str,
     prompt_specs: list[AlbumPromptSpec],
-    static_dir: str,
 ) -> MemoryMeta:
     """根据 prompt specs 列表逐张生成相册图片。"""
     memory_id = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S") + "_" + uuid.uuid4().hex[:6]
-    gallery_dir = os.path.join(static_dir, username, "gallery", memory_id)
-    os.makedirs(gallery_dir, exist_ok=True)
 
     memory_images: list[MemoryImageMeta] = []
 
     for idx, spec in enumerate(prompt_specs, 1):
         photo = spec.photo
-        photo_path = os.path.join(static_dir, photo.url.lstrip("/").replace("static/", "", 1))
-        with open(photo_path, "rb") as f:
-            source_bytes = f.read()
+        blob_path = photo.url.lstrip("/").replace("static/", "", 1)
+        source_bytes = await download_blob("data", blob_path)
 
         image_bytes_list = await generate_image(
             prompt=spec.prompt,
@@ -138,9 +133,8 @@ async def generate_album_images(
         )
 
         filename = f"gallery_{idx}_{uuid.uuid4().hex[:8]}.png"
-        filepath = os.path.join(gallery_dir, filename)
-        with open(filepath, "wb") as f:
-            f.write(image_bytes_list[0])
+        out_blob = f"{username}/gallery/{memory_id}/{filename}"
+        await upload_blob("data", out_blob, image_bytes_list[0], content_type="image/png")
 
         generated_url = f"/static/{username}/gallery/{memory_id}/{filename}"
         attraction_name = photo.associated_attraction.get("name", "未知景点")
@@ -174,35 +168,54 @@ async def generate_album_images(
 # ── 手账生成（多图合一） ────────────────────────────────────────
 
 
+def _compose_photos(photo_bytes_list: list[bytes], max_size: int = 2048) -> bytes:
+    """将多张照片拼成一张网格合成图。"""
+    images = [Image.open(BytesIO(b)).convert("RGB") for b in photo_bytes_list]
+    n = len(images)
+    cols = math.ceil(math.sqrt(n))
+    rows = math.ceil(n / cols)
+
+    cell_w = max_size // cols
+    cell_h = max_size // rows
+
+    canvas = Image.new("RGB", (cols * cell_w, rows * cell_h), (255, 255, 255))
+    for i, img in enumerate(images):
+        img.thumbnail((cell_w, cell_h), Image.LANCZOS)
+        x = (i % cols) * cell_w + (cell_w - img.width) // 2
+        y = (i // cols) * cell_h + (cell_h - img.height) // 2
+        canvas.paste(img, (x, y))
+
+    buf = BytesIO()
+    canvas.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 async def generate_journal_image(
     username: str,
     photos: list[PhotoMeta],
-    static_dir: str,
 ) -> MemoryMeta:
-    """将所有选中照片合成一张手账图片。"""
+    """将所有选中照片拼成一张合成图，再生成一张手账图片。"""
     memory_id = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S") + "_" + uuid.uuid4().hex[:6]
-    gallery_dir = os.path.join(static_dir, username, "gallery", memory_id)
-    os.makedirs(gallery_dir, exist_ok=True)
 
     cfg = get_prompts()["gallery_image"]
     prompt = render_prompt("gallery_image")
 
     all_bytes: list[bytes] = []
     for photo in photos:
-        photo_path = os.path.join(static_dir, photo.url.lstrip("/").replace("static/", "", 1))
-        with open(photo_path, "rb") as f:
-            all_bytes.append(f.read())
+        blob_path = photo.url.lstrip("/").replace("static/", "", 1)
+        all_bytes.append(await download_blob("data", blob_path))
+
+    composite = _compose_photos(all_bytes)
 
     image_bytes_list = await generate_image(
         prompt=prompt,
         size=cfg.get("size", "1024x1024"),
-        input_images=all_bytes,
+        input_images=[composite],
     )
 
     filename = f"journal_{uuid.uuid4().hex[:8]}.png"
-    filepath = os.path.join(gallery_dir, filename)
-    with open(filepath, "wb") as f:
-        f.write(image_bytes_list[0])
+    out_blob = f"{username}/gallery/{memory_id}/{filename}"
+    await upload_blob("data", out_blob, image_bytes_list[0], content_type="image/png")
 
     generated_url = f"/static/{username}/gallery/{memory_id}/{filename}"
 

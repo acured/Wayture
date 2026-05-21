@@ -9,9 +9,9 @@
 {{spots}}
 
 要求：
-1. 包含标题（title）、开头问候（greeting）、各个景点的明信片描述（stops）和结尾寄语（farewell）
+1. 包含标题（title）、开头问候（greeting）、一段话这段旅行介绍（tour_text）、各个景点的明信片描述（stops）和结尾寄语（farewell）
 2. 文风温暖、文艺
 3. 严格返回 JSON，不要其他文字
 
 返回格式：
-{"title": "...", "greeting": "...", "stops": [{"name": "景点名", "text": "描述文案"}], "farewell": "..."}
+{"title": "...", "greeting": "...", "tour_text": "...", "stops": [{"name": "景点名", "text": "描述文案"}], "farewell": "..."}

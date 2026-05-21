@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
+import mimetypes
 import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, Response
 
 from models import (
     Attraction,
@@ -22,6 +23,7 @@ from models import (
     PlanRouteResponse,
     PostcardResponse,
 )
+from services.blob_storage import download_blob, read_json, upload_blob, write_json
 from services.config import get_map_meta
 from services.gallery import generate_album_images, generate_gallery_images, generate_journal_image, get_album_prompts
 from services.postcard import generate_postcard
@@ -32,10 +34,6 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
-DATA_DIR = BASE_DIR / "data"
-
-STATIC_DIR.mkdir(exist_ok=True)
-DATA_DIR.mkdir(exist_ok=True)
 
 app = FastAPI(title="Wayture Service", version="1.0.0")
 
@@ -47,49 +45,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# ── static file proxy ──────────────────────────────────────────
+
+LOCAL_STATIC_PREFIXES = ("map_data/",)
+LOCAL_STATIC_FILES = {"map.jpg"}
+
+
+@app.get("/static/{path:path}")
+async def serve_static(path: str):
+    is_local = path in LOCAL_STATIC_FILES or any(path.startswith(p) for p in LOCAL_STATIC_PREFIXES)
+    if is_local:
+        local = STATIC_DIR / path
+        if local.exists():
+            return FileResponse(local)
+        raise HTTPException(status_code=404, detail="File not found")
+
+    try:
+        data = await download_blob("data", path)
+    except Exception:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    media_type = mimetypes.guess_type(path)[0] or "application/octet-stream"
+    return Response(content=data, media_type=media_type)
 
 
 # ── helpers ──────────────────────────────────────────────────────
 
-def _user_data_dir(username: str) -> Path:
-    d = DATA_DIR / username
-    d.mkdir(parents=True, exist_ok=True)
-    return d
+async def _load_photos(username: str) -> list[dict]:
+    return await read_json("data", f"{username}/photos.json")
 
 
-def _photo_meta_path(username: str) -> Path:
-    return _user_data_dir(username) / "photos.json"
+async def _save_photos(username: str, photos: list[dict]) -> None:
+    await write_json("data", f"{username}/photos.json", photos)
 
 
-def _load_photos(username: str) -> list[dict]:
-    p = _photo_meta_path(username)
-    if p.exists():
-        return json.loads(p.read_text(encoding="utf-8"))
-    return []
+async def _load_memories(username: str) -> list[dict]:
+    return await read_json("data", f"{username}/memories.json")
 
 
-def _save_photos(username: str, photos: list[dict]) -> None:
-    p = _photo_meta_path(username)
-    p.write_text(json.dumps(photos, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
-def _memories_path(username: str) -> Path:
-    return _user_data_dir(username) / "memories.json"
-
-
-def _load_memories(username: str) -> list[dict]:
-    p = _memories_path(username)
-    if p.exists():
-        return json.loads(p.read_text(encoding="utf-8"))
-    return []
-
-
-def _save_memory(username: str, memory: dict) -> None:
-    memories = _load_memories(username)
+async def _save_memory(username: str, memory: dict) -> None:
+    memories = await _load_memories(username)
     memories.append(memory)
-    p = _memories_path(username)
-    p.write_text(json.dumps(memories, ensure_ascii=False, indent=2), encoding="utf-8")
+    await write_json("data", f"{username}/memories.json", memories)
 
 
 # ── 0. 获取地图景点 meta ─────────────────────────────────────────
@@ -121,15 +119,11 @@ async def api_upload_image(
     username: str = Form(...),
     map_meta: str = Form(default=""),
 ):
-    user_dir = STATIC_DIR / username
-    user_dir.mkdir(parents=True, exist_ok=True)
-
     ext = Path(file.filename or "upload.jpg").suffix or ".jpg"
     safe_name = f"{uuid.uuid4().hex[:12]}{ext}"
-    save_path = user_dir / safe_name
 
     content = await file.read()
-    save_path.write_bytes(content)
+    await upload_blob("data", f"{username}/{safe_name}", content, content_type=file.content_type)
 
     attractions = get_map_meta()
     if map_meta:
@@ -139,11 +133,11 @@ async def api_upload_image(
             pass
 
     try:
-        classification = await classify_image(str(save_path), attractions)
+        classification = await classify_image(content, ext, attractions)
     except Exception:
         classification = {"attraction_id": None, "attraction_name": "", "description": ""}
 
-    photos = _load_photos(username)
+    photos = await _load_photos(username)
     next_index = max((p["index"] for p in photos), default=0) + 1
 
     matched_attraction = {}
@@ -164,7 +158,7 @@ async def api_upload_image(
     )
 
     photos.append(meta.model_dump())
-    _save_photos(username, photos)
+    await _save_photos(username, photos)
 
     return meta
 
@@ -173,14 +167,14 @@ async def api_upload_image(
 
 @app.get("/api/images/{username}", response_model=list[PhotoMeta])
 async def api_get_images(username: str):
-    return _load_photos(username)
+    return await _load_photos(username)
 
 
 # ── 5. 生成图册（回忆） ──────────────────────────────────────────
 
 @app.post("/api/generate-gallery", response_model=GalleryResponse)
 async def api_generate_gallery(req: GenerateGalleryRequest):
-    photos = _load_photos(req.username)
+    photos = await _load_photos(req.username)
     if not photos:
         raise HTTPException(status_code=404, detail="该用户没有上传过照片")
 
@@ -188,9 +182,9 @@ async def api_generate_gallery(req: GenerateGalleryRequest):
     if not selected:
         raise HTTPException(status_code=400, detail="未找到所选照片")
 
-    memory = await generate_gallery_images(req.username, selected, str(STATIC_DIR))
+    memory = await generate_gallery_images(req.username, selected)
 
-    _save_memory(req.username, memory.model_dump())
+    await _save_memory(req.username, memory.model_dump())
 
     return GalleryResponse(username=req.username, memory=memory)
 
@@ -199,7 +193,7 @@ async def api_generate_gallery(req: GenerateGalleryRequest):
 
 @app.post("/api/generate-album", response_model=GalleryResponse)
 async def api_generate_album(req: GenerateAlbumRequest):
-    photos = _load_photos(req.username)
+    photos = await _load_photos(req.username)
     if not photos:
         raise HTTPException(status_code=404, detail="该用户没有上传过照片")
 
@@ -208,9 +202,9 @@ async def api_generate_album(req: GenerateAlbumRequest):
         raise HTTPException(status_code=400, detail="未找到所选照片")
 
     prompt_specs = get_album_prompts(selected)
-    memory = await generate_album_images(req.username, prompt_specs, str(STATIC_DIR))
+    memory = await generate_album_images(req.username, prompt_specs)
 
-    _save_memory(req.username, memory.model_dump())
+    await _save_memory(req.username, memory.model_dump())
 
     return GalleryResponse(username=req.username, memory=memory)
 
@@ -219,7 +213,7 @@ async def api_generate_album(req: GenerateAlbumRequest):
 
 @app.post("/api/generate-journal", response_model=GalleryResponse)
 async def api_generate_journal(req: GenerateJournalRequest):
-    photos = _load_photos(req.username)
+    photos = await _load_photos(req.username)
     if not photos:
         raise HTTPException(status_code=404, detail="该用户没有上传过照片")
 
@@ -227,9 +221,9 @@ async def api_generate_journal(req: GenerateJournalRequest):
     if not selected:
         raise HTTPException(status_code=400, detail="未找到所选照片")
 
-    memory = await generate_journal_image(req.username, selected, str(STATIC_DIR))
+    memory = await generate_journal_image(req.username, selected)
 
-    _save_memory(req.username, memory.model_dump())
+    await _save_memory(req.username, memory.model_dump())
 
     return GalleryResponse(username=req.username, memory=memory)
 
@@ -238,7 +232,7 @@ async def api_generate_journal(req: GenerateJournalRequest):
 
 @app.get("/api/memories/{username}", response_model=list[MemoryMeta])
 async def api_get_memories(username: str):
-    return _load_memories(username)
+    return await _load_memories(username)
 
 
 # ── 启动入口 ─────────────────────────────────────────────────────

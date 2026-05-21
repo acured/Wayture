@@ -10,7 +10,7 @@ import json
 import os
 import sys
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://127.0.0.1:8001"
 
 
 def separator(title: str):
@@ -21,6 +21,17 @@ def separator(title: str):
 
 def print_json(data):
     print(json.dumps(data, ensure_ascii=False, indent=2))
+
+
+def verify_url(client: httpx.Client, url: str, label: str = ""):
+    """GET a URL and verify it returns 200."""
+    full = url if url.startswith("http") else f"{BASE_URL}{url}"
+    resp = client.get(full, timeout=300)
+    tag = f" ({label})" if label else ""
+    if resp.status_code == 200:
+        print(f"  ✅ GET {url}{tag} -> {resp.status_code}, {len(resp.content)} bytes")
+    else:
+        print(f"  ❌ GET {url}{tag} -> {resp.status_code}")
 
 
 # ── 0. 测试获取地图景点 meta ────────────────────────────────────
@@ -41,6 +52,13 @@ def test_get_map_meta(client: httpx.Client) -> list:
         return []
 
 
+# ── 0.5 测试本地静态资源代理 ────────────────────────────────────
+
+def test_local_static(client: httpx.Client):
+    separator("0.5. 本地静态资源  GET /static/map.jpg")
+    verify_url(client, "/static/map.jpg", "local asset via proxy")
+
+
 # ── 1. 测试规划路线 ─────────────────────────────────────────────
 
 def test_plan_route(client: httpx.Client, attractions: list) -> dict | None:
@@ -52,7 +70,7 @@ def test_plan_route(client: httpx.Client, attractions: list) -> dict | None:
     }
 
     print(f"请求: {json.dumps(payload, ensure_ascii=False)[:200]}...")
-    resp = client.post(f"{BASE_URL}/api/plan-route", json=payload, timeout=60)
+    resp = client.post(f"{BASE_URL}/api/plan-route", json=payload, timeout=300)
 
     print(f"状态码: {resp.status_code}")
     if resp.status_code == 200:
@@ -86,13 +104,16 @@ def test_generate_postcard(client: httpx.Client, attractions: list, route_data: 
     }
 
     print(f"请求: {json.dumps(payload, ensure_ascii=False)[:200]}...")
-    resp = client.post(f"{BASE_URL}/api/generate-postcard", json=payload, timeout=120)
+    resp = client.post(f"{BASE_URL}/api/generate-postcard", json=payload, timeout=300)
 
     print(f"状态码: {resp.status_code}")
     if resp.status_code == 200:
         data = resp.json()
         print_json(data)
-        print(f"明信片图片地址: {data.get('image_url', '无')}")
+        image_url = data.get("image_url", "")
+        print(f"明信片图片地址: {image_url}")
+        if image_url:
+            verify_url(client, image_url, "postcard image from blob")
         print("✅ 生成明信片成功")
     else:
         print(f"❌ 失败: {resp.text}")
@@ -142,12 +163,16 @@ def test_upload_image(client: httpx.Client):
             f"{BASE_URL}/api/upload-image",
             data={"username": "demo_user"},
             files={"file": ("test_photo.jpg", f, "image/jpeg")},
-            timeout=60,
+            timeout=300,
         )
 
     print(f"状态码: {resp.status_code}")
     if resp.status_code == 200:
-        print_json(resp.json())
+        data = resp.json()
+        print_json(data)
+        photo_url = data.get("url", "")
+        if photo_url:
+            verify_url(client, photo_url, "uploaded photo from blob")
         print("✅ 上传图片成功")
     else:
         print(f"❌ 失败: {resp.text}")
@@ -184,7 +209,7 @@ def test_generate_gallery(client: httpx.Client, photos: list):
     payload = {"username": "demo_user", "selected_indices": indices}
 
     print(f"请求: {json.dumps(payload, ensure_ascii=False)}")
-    resp = client.post(f"{BASE_URL}/api/generate-gallery", json=payload, timeout=120)
+    resp = client.post(f"{BASE_URL}/api/generate-gallery", json=payload, timeout=300)
 
     print(f"状态码: {resp.status_code}")
     if resp.status_code == 200:
@@ -194,6 +219,8 @@ def test_generate_gallery(client: httpx.Client, photos: list):
         print(f"回忆 ID: {memory.get('id')}")
         print(f"回忆标题: {memory.get('title')}")
         print(f"生成图片数: {memory.get('generated_image_count')}")
+        for img in memory.get("images", []):
+            verify_url(client, img.get("generated_url", ""), "gallery image from blob")
         print("✅ 生成图册成功")
     else:
         print(f"❌ 失败: {resp.text}")
@@ -235,6 +262,10 @@ def main():
 
         # 0. 先获取地图 meta（后续接口复用）
         attractions = test_get_map_meta(client)
+        input("按回车继续测试后续接口...")
+
+        # 0.5. 测试本地静态资源代理
+        test_local_static(client)
         input("按回车继续测试后续接口...")
 
         # 1. 规划路线

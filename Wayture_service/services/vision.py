@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import json
-import os
 
 from models import Attraction
 from services.ai import chat_completion
@@ -10,13 +9,13 @@ from services.config import get_prompts, render_prompt
 
 
 async def classify_image(
-    image_path: str,
+    image_data: bytes,
+    image_ext: str,
     map_meta: list[Attraction],
 ) -> dict:
-    with open(image_path, "rb") as f:
-        b64 = base64.b64encode(f.read()).decode()
+    b64 = base64.b64encode(image_data).decode()
 
-    ext = os.path.splitext(image_path)[1].lower().lstrip(".")
+    ext = image_ext.lower().lstrip(".")
     mime_map = {"jpg": "jpeg", "jpeg": "jpeg", "png": "png", "gif": "gif", "webp": "webp"}
     mime = mime_map.get(ext, "jpeg")
 

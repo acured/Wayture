@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import base64
-import io
 
 from services.azure_client import get_image_client, get_chat_client
 
@@ -36,22 +35,12 @@ async def generate_image(
 ) -> list[bytes]:
     client, deployment = get_image_client()
 
-    if input_images is not None:
-        image_files = [io.BytesIO(img) for img in input_images]
-        for f in image_files:
-            f.name = "input.png"
-        resp = await client.images.edit(
-            model=deployment,
-            image=image_files if len(image_files) > 1 else image_files[0],
-            prompt=prompt,
-            n=n,
-            size=size,
-        )
-    else:
-        kwargs: dict = dict(model=deployment, prompt=prompt, size=size, n=n)
-        if quality is not None:
-            kwargs["quality"] = quality
-        resp = await client.images.generate(**kwargs)
+    full_prompt = prompt
+
+    kwargs: dict = dict(model=deployment, prompt=full_prompt, size=size, n=n)
+    if quality is not None:
+        kwargs["quality"] = quality
+    resp = await client.images.generate(**kwargs)
 
     results: list[bytes] = []
     for item in resp.data:
