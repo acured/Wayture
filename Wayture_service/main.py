@@ -13,7 +13,6 @@ from fastapi.responses import FileResponse, Response
 from models import (
     Attraction,
     GenerateAlbumRequest,
-    GenerateGalleryRequest,
     GenerateJournalRequest,
     GeneratePostcardRequest,
     ImageTaskResponse,
@@ -26,7 +25,7 @@ from models import (
 )
 from services.blob_storage import download_blob, read_json, upload_blob, write_json
 from services.config import get_map_meta
-from services.gallery import get_album_prompts, prepare_album, prepare_gallery, prepare_journal
+from services.gallery import get_album_prompts, prepare_album, prepare_journal
 from services.postcard import prepare_postcard
 from services.route_planner import plan_route
 from services.task_manager import create_task, get_task, get_tasks
@@ -82,14 +81,29 @@ async def _save_photos(username: str, photos: list[dict]) -> None:
     await write_json("data", f"{username}/photos/photos.json", photos)
 
 
-async def _load_memories(username: str) -> list[dict]:
-    return await read_json("data", f"{username}/memories/memories.json")
+async def _load_type_memories(username: str, mem_type: str) -> list[dict]:
+    blob_map = {"album": "album/albums.json", "journal": "journal/journals.json"}
+    return await read_json("data", f"{username}/{blob_map[mem_type]}")
 
 
-async def _save_memory(username: str, memory: dict) -> None:
-    memories = await _load_memories(username)
-    memories.append(memory)
-    await write_json("data", f"{username}/memories/memories.json", memories)
+async def _list_with_pending_tasks(username: str, mem_type: str) -> list[dict]:
+    memories = await _load_type_memories(username, mem_type)
+    tasks = await get_tasks(username)
+    for t in tasks:
+        if t.get("task_type") == mem_type and t.get("status") in ("pending", "processing"):
+            memories.append({
+                "id": t["task_id"],
+                "username": username,
+                "created_at": t.get("created_at", ""),
+                "title": "生成中...",
+                "type": mem_type,
+                "images": [],
+                "source_photo_count": 0,
+                "generated_image_count": 0,
+                "task_id": t["task_id"],
+                "status": t["status"],
+            })
+    return memories
 
 
 # ── 0. 获取地图景点 meta ─────────────────────────────────────────
@@ -180,27 +194,7 @@ async def api_get_images(username: str):
     return await _load_photos(username)
 
 
-# ── 5. 生成图册（异步入队）────────────────────────────────────────
-
-@app.post("/api/generate-gallery", response_model=ImageTaskResponse)
-async def api_generate_gallery(req: GenerateGalleryRequest):
-    photos = await _load_photos(req.username)
-    if not photos:
-        raise HTTPException(status_code=404, detail="该用户没有上传过照片")
-
-    selected = [PhotoMeta(**p) for p in photos if p["index"] in req.selected_indices]
-    if not selected:
-        raise HTTPException(status_code=400, detail="未找到所选照片")
-
-    task_data = prepare_gallery(req.username, selected)
-    task_id = await create_task(req.username, "gallery", task_data)
-
-    return ImageTaskResponse(
-        task_id=task_id, username=req.username, task_type="gallery", status="pending",
-    )
-
-
-# ── 6. 生成相册（异步入队）────────────────────────────────────────
+# ── 5. 生成相册（异步入队）────────────────────────────────────────
 
 @app.post("/api/generate-album", response_model=ImageTaskResponse)
 async def api_generate_album(req: GenerateAlbumRequest):
@@ -241,11 +235,18 @@ async def api_generate_journal(req: GenerateJournalRequest):
     )
 
 
-# ── 8. 获取所有回忆 ──────────────────────────────────────────────
+# ── 7. 获取相册列表 ──────────────────────────────────────────────
 
-@app.get("/api/memories/{username}", response_model=list[MemoryMeta])
-async def api_get_memories(username: str):
-    return await _load_memories(username)
+@app.get("/api/albums/{username}", response_model=list[MemoryMeta])
+async def api_get_albums(username: str):
+    return await _list_with_pending_tasks(username, "album")
+
+
+# ── 8. 获取手账列表 ──────────────────────────────────────────────
+
+@app.get("/api/journals/{username}", response_model=list[MemoryMeta])
+async def api_get_journals(username: str):
+    return await _list_with_pending_tasks(username, "journal")
 
 
 # ── 9. 任务查询 ──────────────────────────────────────────────────

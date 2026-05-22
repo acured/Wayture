@@ -95,9 +95,12 @@ class MemoryMeta(BaseModel):
     username: str
     created_at: str
     title: str = ""
-    images: list[MemoryImageMeta]
-    source_photo_count: int
-    generated_image_count: int
+    type: str = ""
+    images: list[MemoryImageMeta] = []
+    source_photo_count: int = 0
+    generated_image_count: int = 0
+    task_id: Optional[str] = None
+    status: str = "completed"
 
 
 class GalleryResponse(BaseModel):

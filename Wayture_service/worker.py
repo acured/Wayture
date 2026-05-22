@@ -59,13 +59,17 @@ async def _save_failure_log(task_id: str, username: str, task_type: str, task_da
         log(task_id, "WARN", f"保存失败日志异常: {e}")
 
 
-async def _save_memory_from_result(username: str, result: dict) -> None:
+async def _save_memory_from_result(username: str, task_type: str, result: dict) -> None:
     memory = result.get("memory")
     if not memory:
         return
-    memories = await read_json("data", f"{username}/memories/memories.json")
+    blob_map = {"album": "album/albums.json", "journal": "journal/journals.json", "gallery": "album/albums.json"}
+    blob_name = blob_map.get(task_type)
+    if not blob_name:
+        return
+    memories = await read_json("data", f"{username}/{blob_name}")
     memories.append(memory)
-    await write_json("data", f"{username}/memories/memories.json", memories)
+    await write_json("data", f"{username}/{blob_name}", memories)
 
 
 async def process_message(msg) -> None:
@@ -142,7 +146,7 @@ async def process_message(msg) -> None:
         elapsed = time.time() - start
 
         if task_type in ("gallery", "album", "journal"):
-            await _save_memory_from_result(username, result)
+            await _save_memory_from_result(username, task_type, result)
 
         await update_task(username, task_id, "completed", result)
         delete_message(msg)
