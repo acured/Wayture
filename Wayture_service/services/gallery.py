@@ -20,7 +20,7 @@ def prepare_gallery(username: str, photos: list[PhotoMeta]) -> dict:
     cfg = get_prompts()["gallery_image"]
     sub_tasks = []
     for idx, photo in enumerate(photos, 1):
-        attraction_name = photo.associated_attraction.get("name", "未知景点")
+        attraction_name = photo.associated_attraction.get("name", "旅行景点")
         description = photo.description or "一张旅行照片"
         prompt = render_prompt(
             "gallery_image",
@@ -52,7 +52,15 @@ def prepare_album(username: str, prompt_specs: list[AlbumPromptSpec]) -> dict:
 
 def prepare_journal(username: str, photos: list[PhotoMeta]) -> dict:
     cfg = get_prompts()["gallery_image"]
-    prompt = render_prompt("gallery_image")
+
+    seen = []
+    for photo in photos:
+        name = photo.associated_attraction.get("name", "")
+        if name and name not in seen:
+            seen.append(name)
+    route_stops = "\n".join(f"{i+1}. {name}" for i, name in enumerate(seen))
+
+    prompt = render_prompt("gallery_image", route_stops=route_stops)
     ref_images = []
     photos_meta = []
     for photo in photos:
@@ -85,7 +93,7 @@ async def execute_gallery_task(username: str, task_data: dict) -> dict:
         await upload_blob("data", out_blob, image_bytes_list[0], content_type="image/png")
 
         photo = PhotoMeta(**sub["photo_meta"])
-        attraction_name = photo.associated_attraction.get("name", "未知景点")
+        attraction_name = photo.associated_attraction.get("name", "旅行景点")
         description = photo.description or "一张旅行照片"
 
         memory_images.append(MemoryImageMeta(
@@ -182,7 +190,7 @@ def get_album_prompts(photos: list[PhotoMeta]) -> list[AlbumPromptSpec]:
 
         prompt = render_prompt(
             key,
-            attraction_name=photo.associated_attraction.get("name", "未知景点"),
+            attraction_name=photo.associated_attraction.get("name", "旅行景点"),
             description=photo.description or "一张旅行照片",
         )
 

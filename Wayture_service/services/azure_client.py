@@ -61,20 +61,51 @@ def get_chat_client() -> tuple[AsyncAzureOpenAI, str]:
 
 # ── Postcard / Image 客户端（image generation） ─────────────────
 
-_postcard_client: AsyncAzureOpenAI | None = None
-_postcard_deployment: str = ""
+# _postcard_client: AsyncAzureOpenAI | None = None
+# _postcard_deployment: str = ""
+#
+#
+# def get_image_client() -> tuple[AsyncAzureOpenAI, str]:
+#     global _postcard_client, _postcard_deployment
+#     if _postcard_client is None:
+#         url = os.getenv("VITE_POSTCARD_API_ENDPOINT", "")
+#         token = os.getenv("VITE_POSTCARD_API_TOKEN", "")
+#         endpoint, deploy, version = _parse_azure_endpoint(url)
+#         _postcard_deployment = deploy or "gpt-image-1"
+#         _postcard_client = AsyncAzureOpenAI(
+#             azure_endpoint=endpoint,
+#             api_key=token,
+#             api_version=version,
+#         )
+#     return _postcard_client, _postcard_deployment
+
+IMAGE_AZURE_ENDPOINT = "https://aoai-svc-0.openai.azure.com/"
+IMAGE_MANAGED_IDENTITY_CLIENT_ID = "dc1352c5-927a-4fa1-93c4-eecb03417716"
+IMAGE_API_VERSION = "2025-04-01-preview"
+IMAGE_DEPLOYMENT = "gpt-image-2"
+
+_image_client: "AzureOpenAI | None" = None
 
 
-def get_image_client() -> tuple[AsyncAzureOpenAI, str]:
-    global _postcard_client, _postcard_deployment
-    if _postcard_client is None:
-        url = os.getenv("VITE_POSTCARD_API_ENDPOINT", "")
-        token = os.getenv("VITE_POSTCARD_API_TOKEN", "")
-        endpoint, deploy, version = _parse_azure_endpoint(url)
-        _postcard_deployment = deploy or "gpt-image-1"
-        _postcard_client = AsyncAzureOpenAI(
-            azure_endpoint=endpoint,
-            api_key=token,
-            api_version=version,
+def get_image_client() -> tuple["AzureOpenAI", str]:
+    global _image_client
+    if _image_client is None:
+        from azure.identity import ManagedIdentityCredential, DefaultAzureCredential, get_bearer_token_provider
+        from openai import AzureOpenAI
+
+        try:
+            credential = ManagedIdentityCredential(client_id=IMAGE_MANAGED_IDENTITY_CLIENT_ID)
+            token_provider = get_bearer_token_provider(
+                credential, "https://cognitiveservices.azure.com/.default"
+            )
+        except Exception:
+            credential = DefaultAzureCredential()
+            token_provider = get_bearer_token_provider(
+                credential, "https://cognitiveservices.azure.com/.default"
+            )
+        _image_client = AzureOpenAI(
+            azure_endpoint=IMAGE_AZURE_ENDPOINT,
+            azure_ad_token_provider=token_provider,
+            api_version=IMAGE_API_VERSION,
         )
-    return _postcard_client, _postcard_deployment
+    return _image_client, IMAGE_DEPLOYMENT

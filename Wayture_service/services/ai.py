@@ -35,12 +35,17 @@ async def generate_image(
 ) -> list[bytes]:
     client, deployment = get_image_client()
 
-    full_prompt = prompt
-
-    kwargs: dict = dict(model=deployment, prompt=full_prompt, size=size, n=n)
+    kwargs: dict = dict(model=deployment, prompt=prompt, size=size, n=n)
     if quality is not None:
         kwargs["quality"] = quality
-    resp = await client.images.generate(**kwargs)
+
+    if input_images:
+        from io import BytesIO
+        image_files = [BytesIO(img) for img in input_images]
+        kwargs["image"] = image_files if len(image_files) > 1 else image_files[0]
+        resp = client.images.edit(**kwargs)
+    else:
+        resp = client.images.generate(**kwargs)
 
     results: list[bytes] = []
     for item in resp.data:

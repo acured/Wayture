@@ -6,5 +6,7 @@
 景点列表：
 {{spots}}
 
+重要：你必须从景点列表中选择一个最接近的景点，即使不完全确定也要给出最佳猜测。不允许返回 null 或空值。根据照片中的环境、设备、植被、建筑风格等线索进行推断。
+
 返回严格 JSON（不要其他文字）：
-{"attraction_id": 景点id或null, "attraction_name": "景点名或空", "description": "照片描述"}
+{"attraction_id": 景点id, "attraction_name": "景点名", "description": "照片描述"}

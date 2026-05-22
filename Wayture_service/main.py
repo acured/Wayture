@@ -172,6 +172,12 @@ async def api_upload_image(
                 matched_attraction = a.model_dump()
                 break
 
+    if not matched_attraction and attractions:
+        fallback = attractions[0]
+        matched_attraction = fallback.model_dump()
+        if not classification.get("attraction_name"):
+            classification["attraction_name"] = fallback.name
+
     meta = PhotoMeta(
         index=next_index,
         filename=safe_name,
