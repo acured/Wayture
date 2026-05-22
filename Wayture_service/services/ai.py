@@ -33,19 +33,39 @@ async def generate_image(
     n: int = 1,
     quality: str | None = None,
 ) -> list[bytes]:
+    import asyncio
+    from io import BytesIO
+
     client, deployment = get_image_client()
 
-    kwargs: dict = dict(model=deployment, prompt=prompt, size=size, n=n)
-    if quality is not None:
-        kwargs["quality"] = quality
-
     if input_images:
-        from io import BytesIO
-        image_files = [BytesIO(img) for img in input_images]
-        kwargs["image"] = image_files if len(image_files) > 1 else image_files[0]
-        resp = client.images.edit(**kwargs)
+        image_files = []
+        for i, img in enumerate(input_images):
+            buf = BytesIO(img)
+            buf.name = f"input_{i}.png"
+            image_files.append(buf)
+
+        def call_edit():
+            return client.images.edit(
+                model=deployment,
+                image=image_files if len(image_files) > 1 else image_files[0],
+                prompt=prompt,
+                n=n,
+                size=size,
+            )
+
+        loop = asyncio.get_event_loop()
+        resp = await loop.run_in_executor(None, call_edit)
     else:
-        resp = client.images.generate(**kwargs)
+        kwargs: dict = dict(model=deployment, prompt=prompt, size=size, n=n)
+        if quality is not None:
+            kwargs["quality"] = quality
+
+        def call_generate():
+            return client.images.generate(**kwargs)
+
+        loop = asyncio.get_event_loop()
+        resp = await loop.run_in_executor(None, call_generate)
 
     results: list[bytes] = []
     for item in resp.data:
