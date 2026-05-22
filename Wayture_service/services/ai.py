@@ -28,7 +28,7 @@ async def chat_completion(
 async def generate_image(
     prompt: str,
     *,
-    size: str = "1024x1024",
+    size: str = "3840x2160",
     input_images: list[bytes] | None = None,
     n: int = 1,
     quality: str | None = None,

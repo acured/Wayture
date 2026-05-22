@@ -82,7 +82,7 @@ def get_chat_client() -> tuple[AsyncAzureOpenAI, str]:
 IMAGE_AZURE_ENDPOINT = "https://aoai-svc-0.openai.azure.com/"
 IMAGE_MANAGED_IDENTITY_CLIENT_ID = "dc1352c5-927a-4fa1-93c4-eecb03417716"
 IMAGE_API_VERSION = "2025-04-01-preview"
-IMAGE_DEPLOYMENT = "gpt-image-2"
+IMAGE_DEPLOYMENT = "gpt-image-2-01"
 
 _image_client: "AzureOpenAI | None" = None
 
