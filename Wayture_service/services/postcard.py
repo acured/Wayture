@@ -67,7 +67,7 @@ async def prepare_postcard(
         if attr:
             card = (
                 f"-「{i}」：项目名称：「{attr.name}」、"
-                f"项目介绍：「{attr.description}」、"
+                f"项目介绍：「{server_attr.description if server_attr else "敬请期待"}」、"
                 f"建议时长：「{attr.cost}」、"
                 f"项目标签：「{attr.field}」、"
                 f"景点照片：「图{photo_idx}是景点照片」"
