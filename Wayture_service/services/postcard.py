@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import uuid
 from pathlib import Path
@@ -10,6 +11,7 @@ from services.blob_storage import upload_blob, upload_text, read_json
 from services.config import get_map_meta, get_prompts, render_prompt
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+MAP_IMAGE_PATH = STATIC_DIR / "map.jpg"
 
 
 async def prepare_postcard(
@@ -35,8 +37,16 @@ async def prepare_postcard(
         spots=json.dumps(spots, ensure_ascii=False),
     )
 
+    content: list[dict] = [{"type": "text", "text": prompt}]
+    if MAP_IMAGE_PATH.exists():
+        b64 = base64.b64encode(MAP_IMAGE_PATH.read_bytes()).decode()
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+        })
+
     raw = await chat_completion(
-        messages=[{"role": "user", "content": prompt}],
+        messages=[{"role": "user", "content": content}],
         temperature=cfg_text.get("temperature", 0.8),
     )
 
@@ -83,7 +93,7 @@ async def prepare_postcard(
         cards.append(card)
     stops_cards = "\n".join(cards)
 
-    # ref_image_descs.append(f"图{photo_idx}：尺木神奇世界地图")
+    ref_image_descs.append(f"图{photo_idx}：二维码照片")
     ref_images_desc = "\n".join(ref_image_descs)
 
     user_name = ""
@@ -114,7 +124,7 @@ async def prepare_postcard(
 
     await upload_text("data", f"{username}/postcard/image_prompt.txt", img_prompt)
 
-    local_ref_images = ref_image_paths # + ["map.jpg"]
+    local_ref_images = ref_image_paths + ["memories_qrcode.jpg"]
 
     task_data = {
         "prompt": img_prompt,
