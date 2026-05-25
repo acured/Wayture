@@ -60,3 +60,11 @@ async def upload_text(container: str, blob_path: str, text: str) -> None:
         container, blob_path, text.encode("utf-8"),
         content_type="text/plain; charset=utf-8",
     )
+
+
+async def delete_blob(container: str, blob_path: str) -> None:
+    blob = _get_client().get_blob_client(container, blob_path)
+    try:
+        await blob.delete_blob()
+    except ResourceNotFoundError:
+        pass

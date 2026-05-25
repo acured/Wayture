@@ -23,7 +23,7 @@ from models import (
     PostcardResponse,
     TaskMeta,
 )
-from services.blob_storage import download_blob, read_json, upload_blob, write_json
+from services.blob_storage import delete_blob, download_blob, read_json, upload_blob, write_json
 from services.config import get_map_meta
 from services.gallery import get_album_prompts, prepare_album, prepare_journal
 from services.postcard import prepare_postcard
@@ -191,6 +191,28 @@ async def api_upload_image(
     await _save_photos(username, photos)
 
     return meta
+
+
+# ── 3.5 删除图片 ────────────────────────────────────────────────
+
+@app.delete("/api/images/{username}/{photo_index}")
+async def api_delete_image(username: str, photo_index: int):
+    photos = await _load_photos(username)
+    target = None
+    for p in photos:
+        if p["index"] == photo_index:
+            target = p
+            break
+    if target is None:
+        raise HTTPException(status_code=404, detail="照片不存在")
+
+    blob_path = f"{username}/photos/{target['filename']}"
+    await delete_blob("data", blob_path)
+
+    photos = [p for p in photos if p["index"] != photo_index]
+    await _save_photos(username, photos)
+
+    return {"detail": "已删除", "index": photo_index}
 
 
 # ── 4. 获取图片 ──────────────────────────────────────────────────
