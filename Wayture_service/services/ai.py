@@ -28,7 +28,8 @@ async def chat_completion(
 async def generate_image(
     prompt: str,
     *,
-    size: str = "3840x2160",
+    size: str = "1536x1024",
+    # size: str = "3840x2160",
     input_images: list[bytes] | None = None,
     n: int = 1,
     quality: str | None = None,
@@ -37,6 +38,7 @@ async def generate_image(
     from io import BytesIO
 
     client, deployment = get_image_client()
+    size = "1536x1024"
 
     if input_images:
         image_files = []

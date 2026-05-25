@@ -66,11 +66,11 @@ async def prepare_postcard(
         server_attr = server_attrs.get(name)
         if attr:
             card = (
-                f"-「{i}」：「项目名称：{attr.name}」、"
-                f"「项目介绍：{attr.description}」、"
-                f"「建议时长：{attr.cost}」、"
-                f"「项目标签:{attr.field}」、"
-                f"「景点照片：图{photo_idx}是景点照片」"
+                f"-「{i}」：项目名称：「{attr.name}」、"
+                f"项目介绍：「{attr.description}」、"
+                f"建议时长：「{attr.cost}」、"
+                f"项目标签：「{attr.field}」、"
+                f"景点照片：「图{photo_idx}是景点照片」"
             )
             images = (server_attr.images if server_attr else None) or attr.images
             if images:

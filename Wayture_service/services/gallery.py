@@ -130,9 +130,18 @@ async def execute_album_task(username: str, task_data: dict) -> dict:
 async def execute_journal_task(username: str, task_data: dict) -> dict:
     memory_id = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S") + "_" + uuid.uuid4().hex[:6]
 
+    input_images = []
+    for blob_path in task_data.get("ref_images", []):
+        try:
+            img_bytes = await download_blob("data", blob_path)
+            input_images.append(img_bytes)
+        except Exception:
+            pass
+
     image_bytes_list = await generate_image(
         prompt=task_data["prompt"],
         size=task_data.get("size", "1024x1024"),
+        input_images=input_images or None,
     )
 
     filename = f"journal_{uuid.uuid4().hex[:8]}.png"
