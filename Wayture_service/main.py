@@ -8,7 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response
 
 from models import (
     Attraction,
@@ -35,6 +35,7 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
+FRONTEND_DIR = BASE_DIR / "frontend"
 
 app = FastAPI(title="Wayture Service", version="1.0.0")
 
@@ -290,6 +291,16 @@ async def api_get_task(username: str, task_id: str):
     if task is None:
         raise HTTPException(status_code=404, detail="任务不存在")
     return task
+
+
+# ── 前端 SPA ────────────────────────────────────────────────────
+
+@app.get("/{path:path}")
+async def serve_frontend(path: str):
+    file = FRONTEND_DIR / path
+    if file.is_file():
+        return FileResponse(file)
+    return HTMLResponse((FRONTEND_DIR / "index.html").read_text(encoding="utf-8"))
 
 
 # ── 启动入口 ─────────────────────────────────────────────────────
