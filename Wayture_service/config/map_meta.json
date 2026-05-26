@@ -495,7 +495,9 @@
     ],
     "cost": "0.5h",
     "note": "结合当天300人的总客流量估算，排队及体验过程通常可在半小时内完成。",
-    "images": [],
+    "images": [
+      "static/map_data/20/shuihuati.png"
+    ],
     "sub_description": "北京温榆河附近·尺木神奇世界",
     "location": [
       43.2,
