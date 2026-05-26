@@ -26,7 +26,7 @@ from models import (
 from services.blob_storage import delete_blob, download_blob, read_json, upload_blob, write_json
 from services.config import get_map_meta
 from services.gallery import get_album_prompts, prepare_album, prepare_journal
-from services.postcard import prepare_postcard
+from services.postcard import prepare_postcard, prepare_postcard_banner
 from services.route_planner import plan_route
 from services.task_manager import create_task, get_task, get_tasks
 from services.vision import classify_image
@@ -130,9 +130,15 @@ async def api_generate_postcard(req: GeneratePostcardRequest):
     )
     task_id = await create_task(req.username, "postcard", task_data)
 
+    banner_task_data = await prepare_postcard_banner(
+        req.username, req.attractions, req.addition_prompt,
+    )
+    banner_task_id = await create_task(req.username, "postcard_banner", banner_task_data)
+
     return {
         **response.model_dump(),
         "image_task_id": task_id,
+        "image_banner_task_id": banner_task_id,
     }
 
 
