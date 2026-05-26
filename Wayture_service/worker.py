@@ -24,6 +24,7 @@ from services.task_manager import update_task
 
 EXECUTORS = {
     "postcard": execute_postcard_task,
+    "postcard_banner": execute_postcard_task,
     "gallery": execute_gallery_task,
     "album": execute_album_task,
     "journal": execute_journal_task,

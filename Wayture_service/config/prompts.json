@@ -11,6 +11,10 @@
     "prompt_file": "postcard_image.md",
     "size": "1024x1024"
   },
+  "postcard_banner": {
+    "prompt_file": "postcard_banner.md",
+    "size": "1024x1024"
+  },
   "vision_classify": {
     "prompt_file": "vision_classify.md",
     "temperature": 0.3

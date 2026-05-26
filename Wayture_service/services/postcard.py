@@ -179,6 +179,40 @@ async def prepare_postcard(
     return response, task_data
 
 
+async def prepare_postcard_banner(
+    username: str,
+    attractions: list[Attraction],
+    addition_prompt: str = "",
+) -> dict:
+    server_attrs = {a.name: a for a in get_map_meta()}
+
+    ref_image_paths: list[str] = []
+    ref_image_descs: list[str] = []
+    photo_idx = 1
+    for a in attractions:
+        sa = server_attrs.get(a.name)
+        images = (sa.images if sa else None) or a.images
+        if images:
+            img_path = images[0].lstrip("/").replace("static/", "", 1)
+            ref_image_paths.append(img_path)
+            ref_image_descs.append(f"图{photo_idx}：{a.name} 景点照片")
+            photo_idx += 1
+
+    ref_images_desc = "\n".join(ref_image_descs)
+
+    cfg = get_prompts()["postcard_banner"]
+    prompt = render_prompt("postcard_banner", ref_images_desc=ref_images_desc)
+
+    await upload_text("data", f"{username}/postcard/banner_prompt.txt", prompt)
+
+    return {
+        "prompt": prompt,
+        "size": cfg.get("size", "1024x1024"),
+        "addition_prompt": addition_prompt,
+        "local_ref_images": ref_image_paths,
+    }
+
+
 async def execute_postcard_task(username: str, task_data: dict) -> dict:
     prompt = task_data["prompt"]
     size = task_data.get("size", "1024x1024")
