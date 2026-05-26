@@ -38,7 +38,7 @@ async def generate_image(
     from io import BytesIO
 
     client, deployment = get_image_client()
-    size = "1536x1024"
+    size = "auto"
 
     if input_images:
         image_files = []

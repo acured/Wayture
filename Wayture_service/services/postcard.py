@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import random
 import uuid
 from pathlib import Path
 
@@ -25,7 +26,7 @@ async def prepare_postcard(
         for s in route_plan
     ]
     spots = [
-        {"name": a.name, "description": a.description, "field": a.field, "cost": a.cost}
+        {"name": a.name, "description": a.description, "field": a.field, "cost": a.cost, "location": a.location}
         for a in attractions
     ]
 
@@ -61,10 +62,37 @@ async def prepare_postcard(
     farewell = data.get("farewell", "")
 
     # ── 2. 构建 image prompt（不执行生成）─────────────────────────
-    stops_summary = "、".join(s.get("name", "") for s in stops_list)
-
     server_attrs = {a.name: a for a in get_map_meta()}
     attr_by_name = {a.name: a for a in attractions}
+
+    MAX_STOPS = 6
+    if len(stops_list) > MAX_STOPS:
+        with_images: list[dict] = []
+        for s in stops_list:
+            name = s.get("name", "")
+            attr = attr_by_name.get(name)
+            sa = server_attrs.get(name)
+            if attr and ((sa.images if sa else None) or attr.images):
+                with_images.append(s)
+
+        selected: list[dict] = []
+        seen_fields: set[str] = set()
+        remaining: list[dict] = []
+        for s in with_images:
+            field = attr_by_name[s["name"]].field
+            if field not in seen_fields and len(selected) < MAX_STOPS:
+                seen_fields.add(field)
+                selected.append(s)
+            else:
+                remaining.append(s)
+
+        if len(selected) < MAX_STOPS and remaining:
+            extra = random.sample(remaining, min(len(remaining), MAX_STOPS - len(selected)))
+            selected.extend(extra)
+
+        stops_list = selected[:MAX_STOPS]
+
+    stops_summary = "、".join(s.get("name", "") for s in stops_list)
 
     cards: list[str] = []
     ref_image_paths: list[str] = []
