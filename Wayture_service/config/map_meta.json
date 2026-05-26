@@ -230,8 +230,7 @@
     "cost": "0.5h",
     "note": "游玩时长结合约300人客流量下的排队时间及设备单次运行周期估算。",
     "images": [
-      "static/map_data/10/160A7579.JPG",
-      "static/map_data/10/160A7582.JPG"
+      "static/map_data/10/160A7579.JPG"
     ],
     "sub_description": "北京温榆河附近·尺木神奇世界",
     "location": [
@@ -677,8 +676,7 @@
     "cost": "0.5h",
     "note": "游玩时长结合当天约300人的客流量，考虑单次可搭乘16人、运行3分钟的设备效率，估算在半小时内可完成排队与体验。",
     "images": [
-      "static/map_data/28/160A7513.JPG",
-      "static/map_data/28/160A7517.JPG"
+      "static/map_data/28/160A7513.JPG"
     ],
     "sub_description": "北京温榆河附近·尺木神奇世界",
     "location": [
@@ -706,8 +704,7 @@
     "note": "游玩时长结合当天约300人的客流量，参考单次承载16人及单圈运行周期的设备效率，估算可在半小时内完成体验。",
     "images": [
       "static/map_data/29/160A7655.JPG",
-      "static/map_data/29/160A7661.JPG",
-      "static/map_data/29/160A7663.JPG"
+      "static/map_data/29/160A7661.JPG"
     ],
     "sub_description": "北京温榆河附近·尺木神奇世界",
     "location": [
@@ -734,8 +731,6 @@
     "cost": "0.5h",
     "note": "游玩时长结合当天约300人的客流量、设施单次容纳18人以及单次3分钟的运行周期进行估算。",
     "images": [
-      "static/map_data/30/160A7503.JPG",
-      "static/map_data/30/160A7504.JPG",
       "static/map_data/30/160A7506.JPG"
     ],
     "sub_description": "北京温榆河附近·尺木神奇世界",
@@ -763,7 +758,6 @@
     "cost": "0.5h",
     "note": "游玩时长结合当天约300人的客流量，参考单次运行3分钟且承载8人的设备周转率，估算可在半小时内完成体验。",
     "images": [
-      "static/map_data/31/160A7495.JPG",
       "static/map_data/31/160A7496.JPG",
       "static/map_data/31/160A7498.JPG",
       "static/map_data/31/160A7652.JPG"
@@ -822,7 +816,6 @@
     "note": "游玩时长结合当天约300人的客流量，参考设备单次可容纳36人（每车2人，共18车左右）的较高周转效率，估算排队加游玩时间可在半小时内完成。",
     "images": [
       "static/map_data/33/160A7491.JPG",
-      "static/map_data/33/160A7493.JPG",
       "static/map_data/33/160A7494.JPG"
     ],
     "sub_description": "北京温榆河附近·尺木神奇世界",
