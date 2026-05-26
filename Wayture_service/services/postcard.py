@@ -93,7 +93,7 @@ async def prepare_postcard(
         cards.append(card)
     stops_cards = "\n".join(cards)
 
-    ref_image_descs.append(f"图{photo_idx}：二维码照片")
+    # ref_image_descs.append(f"图{photo_idx}：二维码照片")
     ref_images_desc = "\n".join(ref_image_descs)
 
     user_name = ""
@@ -124,7 +124,7 @@ async def prepare_postcard(
 
     await upload_text("data", f"{username}/postcard/image_prompt.txt", img_prompt)
 
-    local_ref_images = ref_image_paths + ["memories_qrcode.jpg"]
+    local_ref_images = ref_image_paths # + ["memories_qrcode.jpg"]
 
     task_data = {
         "prompt": img_prompt,
