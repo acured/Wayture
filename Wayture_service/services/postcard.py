@@ -104,6 +104,9 @@ async def prepare_postcard(
 
         stops_list = [s for s in stops_list if s.get("name") in selected_names][:MAX_STOPS]
 
+    route_order = {s.attraction.name: s.order for s in route_plan}
+    stops_list.sort(key=lambda s: route_order.get(s.get("name", ""), 999))
+
     stops_summary = "、".join(s.get("name", "") for s in stops_list)
 
     cards: list[str] = []
@@ -115,13 +118,14 @@ async def prepare_postcard(
     ref_image_paths.append("map.jpg")
 
     photo_idx = 2
-    for card_idx, stop in enumerate(stops_list, 1):
+    for stop in stops_list:
         name = stop.get("name", "")
+        order = route_order.get(name, 0)
         attr = attr_by_name.get(name)
         server_attr = server_attrs.get(name)
         if attr:
             card = (
-                f"-「{card_idx}」：项目名称：「{attr.name}」、"
+                f"-「{order}」：项目名称：「{attr.name}」、"
                 f"建议时长：「{attr.cost}」、"
                 f"项目标签：「{attr.field}」、"
                 f"景点照片：「图{photo_idx}是景点照片」"
@@ -133,7 +137,7 @@ async def prepare_postcard(
                 ref_image_descs.append(f"图{photo_idx}：{name} 景点照片")
                 photo_idx += 1
         else:
-            card = f"-「{card_idx}」：项目名称：「{name}」"
+            card = f"-「{order}」：项目名称：「{name}」"
         cards.append(card)
     stops_cards = "\n".join(cards)
 
