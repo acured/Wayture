@@ -106,7 +106,12 @@ async def prepare_postcard(
     cards: list[str] = []
     ref_image_paths: list[str] = []
     ref_image_descs: list[str] = []
-    photo_idx = 1
+
+    # 手动添加地图照片
+    ref_image_descs.append(f"图1：地图照片")
+    ref_image_paths.append("map.jpg")
+
+    photo_idx = 2
     for stop in stops_list:
         name = stop.get("name", "")
         attr = attr_by_name.get(name)
