@@ -32,11 +32,12 @@ async def plan_route(username: str, attractions: list[Attraction]) -> PlanRouteR
             temperature=cfg.get("temperature", 0.7),
         )
         data = json.loads(raw)
-    except Exception:
+    except Exception as e:
         data = {
             "route": [{"id": a.id, "order": i, "tips": ""} for i, a in enumerate(attractions, 1)],
             "total_time": "",
             "summary": "按选择顺序游览",
+            "error": str(e),
         }
 
     attraction_map = {a.id: a for a in attractions}
