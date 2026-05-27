@@ -46,14 +46,22 @@ async def prepare_postcard(
             "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
         })
 
-    raw = await chat_completion(
-        messages=[{"role": "user", "content": content}],
-        temperature=cfg_text.get("temperature", 0.8),
-    )
+    try:
+        raw = await chat_completion(
+            messages=[{"role": "user", "content": content}],
+            temperature=cfg_text.get("temperature", 0.8),
+        )
+        data = json.loads(raw)
+    except Exception:
+        data = {
+            "title": "尺木神奇世界一日游",
+            "greeting": "欢迎来到尺木神奇世界！",
+            "tour_text": "",
+            "stops": [{"name": a.name, "description": a.description} for a in attractions],
+            "farewell": "期待与你的下次相遇！",
+        }
 
     await upload_text("data", f"{username}/postcard/chat_prompt.txt", prompt)
-
-    data = json.loads(raw)
 
     title = data.get("title", "")
     greeting = data.get("greeting", "")
@@ -75,22 +83,23 @@ async def prepare_postcard(
             if attr and ((sa.images if sa else None) or attr.images):
                 with_images.append(s)
 
-        selected: list[dict] = []
+        selected_names: set[str] = set()
         seen_fields: set[str] = set()
         remaining: list[dict] = []
         for s in with_images:
             field = attr_by_name[s["name"]].field
-            if field not in seen_fields and len(selected) < MAX_STOPS:
+            if field not in seen_fields and len(selected_names) < MAX_STOPS:
                 seen_fields.add(field)
-                selected.append(s)
+                selected_names.add(s["name"])
             else:
                 remaining.append(s)
 
-        if len(selected) < MAX_STOPS and remaining:
-            extra = random.sample(remaining, min(len(remaining), MAX_STOPS - len(selected)))
-            selected.extend(extra)
+        if len(selected_names) < MAX_STOPS and remaining:
+            extra = random.sample(remaining, min(len(remaining), MAX_STOPS - len(selected_names)))
+            for s in extra:
+                selected_names.add(s["name"])
 
-        stops_list = selected[:MAX_STOPS]
+        stops_list = [s for s in stops_list if s.get("name") in selected_names][:MAX_STOPS]
 
     stops_summary = "、".join(s.get("name", "") for s in stops_list)
 
@@ -98,14 +107,14 @@ async def prepare_postcard(
     ref_image_paths: list[str] = []
     ref_image_descs: list[str] = []
     photo_idx = 1
-    for i, stop in enumerate(stops_list, 1):
+    for stop in stops_list:
         name = stop.get("name", "")
         attr = attr_by_name.get(name)
         server_attr = server_attrs.get(name)
+        spot_id = server_attr.id if server_attr else (attr.id if attr else "?")
         if attr:
             card = (
-                f"-「{i}」：项目名称：「{attr.name}」、"
-                # f"项目介绍：「{server_attr.description if server_attr else '敬请期待'}」、"
+                f"-「{spot_id}」：项目名称：「{attr.name}」、"
                 f"建议时长：「{attr.cost}」、"
                 f"项目标签：「{attr.field}」、"
                 f"景点照片：「图{photo_idx}是景点照片」"
@@ -117,7 +126,7 @@ async def prepare_postcard(
                 ref_image_descs.append(f"图{photo_idx}：{name} 景点照片")
                 photo_idx += 1
         else:
-            card = f"-「{i}」：项目名称：「{name}」"
+            card = f"-「{spot_id}」：项目名称：「{name}」"
         cards.append(card)
     stops_cards = "\n".join(cards)
 

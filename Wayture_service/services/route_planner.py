@@ -26,12 +26,18 @@ async def plan_route(username: str, attractions: list[Attraction]) -> PlanRouteR
         spots=json.dumps(spots, ensure_ascii=False),
     )
 
-    raw = await chat_completion(
-        messages=[{"role": "user", "content": prompt}],
-        temperature=cfg.get("temperature", 0.7),
-    )
-
-    data = json.loads(raw)
+    try:
+        raw = await chat_completion(
+            messages=[{"role": "user", "content": prompt}],
+            temperature=cfg.get("temperature", 0.7),
+        )
+        data = json.loads(raw)
+    except Exception:
+        data = {
+            "route": [{"id": a.id, "order": i, "tips": ""} for i, a in enumerate(attractions, 1)],
+            "total_time": "",
+            "summary": "按选择顺序游览",
+        }
 
     attraction_map = {a.id: a for a in attractions}
     planned: list[PlannedStop] = []
