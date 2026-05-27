@@ -115,14 +115,13 @@ async def prepare_postcard(
     ref_image_paths.append("map.jpg")
 
     photo_idx = 2
-    for stop in stops_list:
+    for card_idx, stop in enumerate(stops_list, 1):
         name = stop.get("name", "")
         attr = attr_by_name.get(name)
         server_attr = server_attrs.get(name)
-        spot_id = server_attr.id if server_attr else (attr.id if attr else "?")
         if attr:
             card = (
-                f"-「{spot_id}」：项目名称：「{attr.name}」、"
+                f"-「{card_idx}」：项目名称：「{attr.name}」、"
                 f"建议时长：「{attr.cost}」、"
                 f"项目标签：「{attr.field}」、"
                 f"景点照片：「图{photo_idx}是景点照片」"
@@ -134,7 +133,7 @@ async def prepare_postcard(
                 ref_image_descs.append(f"图{photo_idx}：{name} 景点照片")
                 photo_idx += 1
         else:
-            card = f"-「{spot_id}」：项目名称：「{name}」"
+            card = f"-「{card_idx}」：项目名称：「{name}」"
         cards.append(card)
     stops_cards = "\n".join(cards)
 
