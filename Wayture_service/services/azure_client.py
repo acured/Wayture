@@ -15,10 +15,11 @@ from openai import AsyncAzureOpenAI
 load_dotenv()
 
 # ── Chat (Vision) 常量 ────────────────────────────────────────
-CHAT_MANAGED_IDENTITY_CLIENT_ID = ""
-CHAT_AZURE_ENDPOINT = ""
-CHAT_API_VERSION = ""
-CHAT_DEPLOYMENT = ""
+CHAT_MANAGED_IDENTITY_CLIENT_ID = "d5679160-d220-4feb-a962-f8b5bdadbb86"
+#CHAT_MANAGED_IDENTITY_CLIENT_ID = "dc1352c5-927a-4fa1-93c4-eecb03417716"
+CHAT_AZURE_ENDPOINT = "https://aoai-svc-0.openai.azure.com/"
+CHAT_API_VERSION = "2024-12-01-preview"
+CHAT_DEPLOYMENT = "gpt-5.1"
 
 # ── Image 常量 ────────────────────────────────────────────────
 IMAGE_MANAGED_IDENTITY_CLIENT_ID = "dc1352c5-927a-4fa1-93c4-eecb03417716"
@@ -91,7 +92,7 @@ def _init_chat_client_with_mi() -> tuple[AsyncAzureOpenAI, str]:
 def get_chat_client() -> tuple[AsyncAzureOpenAI, str]:
     global _chat_client, _chat_deployment
     if _chat_client is None:
-        _chat_client, _chat_deployment = _init_chat_client_with_key()
+        _chat_client, _chat_deployment = _init_chat_client_with_mi()
     return _chat_client, _chat_deployment
 
 

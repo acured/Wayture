@@ -130,10 +130,11 @@ async def api_generate_postcard(req: GeneratePostcardRequest):
     )
     task_id = await create_task(req.username, "postcard", task_data)
 
-    banner_task_data = await prepare_postcard_banner(
-        req.username, req.attractions, req.addition_prompt,
-    )
-    banner_task_id = await create_task(req.username, "postcard_banner", banner_task_data)
+    # banner_task_data = await prepare_postcard_banner(
+    #     req.username, req.attractions, req.addition_prompt,
+    # )
+    # banner_task_id = await create_task(req.username, "postcard_banner", banner_task_data)
+    banner_task_id = None
 
     return {
         **response.model_dump(),
