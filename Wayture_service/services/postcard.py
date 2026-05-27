@@ -25,6 +25,7 @@ async def prepare_postcard(
         {"order": s.order, "name": s.attraction.name, "tips": s.tips}
         for s in route_plan
     ]
+    debug_info = ""
     spots = [
         {"name": a.name, "description": a.description, "field": a.field, "cost": a.cost, "location": a.location}
         for a in attractions
@@ -52,7 +53,9 @@ async def prepare_postcard(
             temperature=cfg_text.get("temperature", 0.8),
         )
         data = json.loads(raw)
-    except Exception:
+    except Exception as e:
+        #print(f"Error occurred while generating postcard content: {e}")
+        debug_info = f"Error: {str(e)}"
         data = {
             "title": "尺木神奇世界一日游",
             "greeting": "欢迎来到尺木神奇世界！",
@@ -188,6 +191,7 @@ async def prepare_postcard(
         stops=stops_list,
         farewell=farewell,
         image_url="",
+        debug_info=debug_info,
     )
 
     return response, task_data
