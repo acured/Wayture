@@ -127,6 +127,7 @@ class GenerateAlbumRequest(BaseModel):
 class GenerateJournalRequest(BaseModel):
     username: str
     selected_indices: list[int]
+    addition_prompt: str = ""
 
 
 # ── 9. 异步图片任务 ─────────────────────────────────────────────

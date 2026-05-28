@@ -263,7 +263,7 @@ async def api_generate_journal(req: GenerateJournalRequest):
     if not selected:
         raise HTTPException(status_code=400, detail="未找到所选照片")
 
-    task_data = prepare_journal(req.username, selected)
+    task_data = prepare_journal(req.username, selected, req.addition_prompt)
     task_id = await create_task(req.username, "journal", task_data)
 
     return ImageTaskResponse(

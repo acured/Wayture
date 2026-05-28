@@ -50,7 +50,7 @@ def prepare_album(username: str, prompt_specs: list[AlbumPromptSpec]) -> dict:
     return {"sub_tasks": sub_tasks}
 
 
-def prepare_journal(username: str, photos: list[PhotoMeta]) -> dict:
+def prepare_journal(username: str, photos: list[PhotoMeta], addition_prompt: str = "") -> dict:
     cfg = get_prompts()["gallery_image"]
 
     seen = []
@@ -60,7 +60,17 @@ def prepare_journal(username: str, photos: list[PhotoMeta]) -> dict:
             seen.append(name)
     route_stops = "\n".join(f"{i+1}. {name}" for i, name in enumerate(seen))
 
-    prompt = render_prompt("gallery_image", route_stops=route_stops)
+    user_name = ""
+    for segment in addition_prompt.split(","):
+        segment = segment.strip()
+        if ":" in segment:
+            key, val = segment.split(":", 1)
+            key = key.strip().lower()
+            val = val.strip()
+            if any(k in key for k in ("昵称", "标题", "name")):
+                user_name = val
+
+    prompt = render_prompt("gallery_image", route_stops=route_stops, user_name=user_name)
     ref_images = []
     photos_meta = []
     for photo in photos:
