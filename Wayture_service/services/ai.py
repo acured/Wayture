@@ -38,13 +38,20 @@ async def generate_image(
     from io import BytesIO
 
     client, deployment = get_image_client()
-    size = "auto"
+    size = "1536x1024"
 
     if input_images:
+        from PIL import Image
+
         image_files = []
         for i, img in enumerate(input_images):
-            buf = BytesIO(img)
+            pic = Image.open(BytesIO(img))
+            if pic.mode not in ("RGB", "RGBA"):
+                pic = pic.convert("RGBA")
+            buf = BytesIO()
             buf.name = f"input_{i}.png"
+            pic.save(buf, format="PNG")
+            buf.seek(0)
             image_files.append(buf)
 
         def call_edit():
