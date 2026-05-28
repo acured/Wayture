@@ -190,7 +190,7 @@ async def poll_loop():
             continue
 
         try:
-            messages = list(receive_messages(max_messages=min(slots, 4), visibility_timeout=600))
+            messages = list(receive_messages(max_messages=min(slots, 4), visibility_timeout=1800))
         except Exception as e:
             print(f"[!] 拉取消息异常: {e}")
             traceback.print_exc()

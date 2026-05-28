@@ -43,11 +43,15 @@ async def generate_image(
     if input_images:
         from PIL import Image
 
+        MAX_REF_SIZE = 1024
+
         image_files = []
         for i, img in enumerate(input_images):
             pic = Image.open(BytesIO(img))
             if pic.mode not in ("RGB", "RGBA"):
                 pic = pic.convert("RGBA")
+            if max(pic.size) > MAX_REF_SIZE:
+                pic.thumbnail((MAX_REF_SIZE, MAX_REF_SIZE), Image.LANCZOS)
             buf = BytesIO()
             buf.name = f"input_{i}.png"
             pic.save(buf, format="PNG")
