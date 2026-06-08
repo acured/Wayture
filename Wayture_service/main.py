@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import uuid
+from io import BytesIO
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -152,10 +153,30 @@ async def api_upload_image(
     map_meta: str = Form(default=""),
 ):
     ext = Path(file.filename or "upload.jpg").suffix or ".jpg"
-    safe_name = f"{uuid.uuid4().hex[:12]}{ext}"
+    safe_name = f"{uuid.uuid4().hex[:12]}.jpg"
 
-    content = await file.read()
-    await upload_blob("data", f"{username}/photos/{safe_name}", content, content_type=file.content_type)
+    raw = await file.read()
+
+    from PIL import Image
+    TARGET_SIZE = 500 * 1024
+    img = Image.open(BytesIO(raw))
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+
+    max_dim = 2048
+    if max(img.size) > max_dim:
+        img.thumbnail((max_dim, max_dim), Image.LANCZOS)
+
+    quality = 85
+    while quality >= 30:
+        buf = BytesIO()
+        img.save(buf, format="JPEG", quality=quality)
+        if buf.tell() <= TARGET_SIZE:
+            break
+        quality -= 5
+    content = buf.getvalue()
+
+    await upload_blob("data", f"{username}/photos/{safe_name}", content, content_type="image/jpeg")
 
     attractions = get_map_meta()
     if map_meta:
@@ -165,7 +186,7 @@ async def api_upload_image(
             pass
 
     try:
-        classification = await classify_image(content, ext, attractions)
+        classification = await classify_image(content, ".jpg", attractions)
     except Exception:
         classification = {"attraction_id": None, "attraction_name": "", "description": ""}
 
