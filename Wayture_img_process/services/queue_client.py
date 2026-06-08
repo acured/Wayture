@@ -4,7 +4,6 @@ import base64
 import json
 import os
 
-from azure.identity import ManagedIdentityCredential, DefaultAzureCredential
 from azure.storage.queue import QueueClient
 from dotenv import load_dotenv
 
@@ -19,15 +18,12 @@ _client: QueueClient | None = None
 def _get_client() -> QueueClient:
     global _client
     if _client is None:
-        mi_client_id = os.getenv("MI_CLIENT_ID", "")
-        try:
-            credential = ManagedIdentityCredential(client_id=mi_client_id) if mi_client_id else DefaultAzureCredential()
-        except Exception:
-            credential = DefaultAzureCredential()
+        from azure.identity import DefaultAzureCredential
+
         _client = QueueClient(
             account_url=f"https://{STORAGE_ACCOUNT}.queue.core.windows.net",
             queue_name=QUEUE_NAME,
-            credential=credential,
+            credential=DefaultAzureCredential(),
         )
     return _client
 

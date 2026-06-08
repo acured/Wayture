@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import os
 
-from azure.identity import ManagedIdentityCredential, DefaultAzureCredential
 from azure.storage.blob.aio import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
 from dotenv import load_dotenv
@@ -18,14 +17,11 @@ _client: BlobServiceClient | None = None
 def _get_client() -> BlobServiceClient:
     global _client
     if _client is None:
-        mi_client_id = os.getenv("MI_CLIENT_ID", "")
-        try:
-            credential = ManagedIdentityCredential(client_id=mi_client_id) if mi_client_id else DefaultAzureCredential()
-        except Exception:
-            credential = DefaultAzureCredential()
+        from azure.identity.aio import DefaultAzureCredential
+
         _client = BlobServiceClient(
             account_url=f"https://{STORAGE_ACCOUNT}.blob.core.windows.net",
-            credential=credential,
+            credential=DefaultAzureCredential(),
         )
     return _client
 
