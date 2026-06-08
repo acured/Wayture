@@ -157,9 +157,10 @@ async def api_upload_image(
 
     raw = await file.read()
 
-    from PIL import Image
+    from PIL import Image, ImageOps
     TARGET_SIZE = 500 * 1024
     img = Image.open(BytesIO(raw))
+    img = ImageOps.exif_transpose(img)
     if img.mode in ("RGBA", "P"):
         img = img.convert("RGB")
 
