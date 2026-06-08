@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+import os
 
+from azure.identity import ManagedIdentityCredential, DefaultAzureCredential
 from azure.storage.blob.aio import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
+from dotenv import load_dotenv
 
-STORAGE_ACCOUNT = "wayturestorage"
+load_dotenv()
+
+STORAGE_ACCOUNT = os.getenv("STORAGE_ACCOUNT", "wayturestorage")
 
 _client: BlobServiceClient | None = None
 
@@ -13,38 +18,34 @@ _client: BlobServiceClient | None = None
 def _get_client() -> BlobServiceClient:
     global _client
     if _client is None:
-        from azure.identity.aio import DefaultAzureCredential
-
+        mi_client_id = os.getenv("MI_CLIENT_ID", "")
+        try:
+            credential = ManagedIdentityCredential(client_id=mi_client_id) if mi_client_id else DefaultAzureCredential()
+        except Exception:
+            credential = DefaultAzureCredential()
         _client = BlobServiceClient(
             account_url=f"https://{STORAGE_ACCOUNT}.blob.core.windows.net",
-            credential=DefaultAzureCredential(),
+            credential=credential,
         )
     return _client
 
 
-async def upload_blob(
-    container: str,
-    blob_path: str,
-    data: bytes,
-    content_type: str | None = None,
-) -> None:
+async def upload_blob(container, blob_path, data, content_type=None):
     from azure.storage.blob import ContentSettings
-
-    kwargs: dict = {"overwrite": True}
+    kwargs = {"overwrite": True}
     if content_type:
         kwargs["content_settings"] = ContentSettings(content_type=content_type)
-
     blob = _get_client().get_blob_client(container, blob_path)
     await blob.upload_blob(data, **kwargs)
 
 
-async def download_blob(container: str, blob_path: str) -> bytes:
+async def download_blob(container, blob_path):
     blob = _get_client().get_blob_client(container, blob_path)
     stream = await blob.download_blob()
     return await stream.readall()
 
 
-async def read_json(container: str, blob_path: str) -> list | dict:
+async def read_json(container, blob_path):
     try:
         raw = await download_blob(container, blob_path)
         return json.loads(raw)
@@ -52,21 +53,10 @@ async def read_json(container: str, blob_path: str) -> list | dict:
         return []
 
 
-async def write_json(container: str, blob_path: str, obj: list | dict) -> None:
+async def write_json(container, blob_path, obj):
     text = json.dumps(obj, ensure_ascii=False, indent=2)
     await upload_blob(container, blob_path, text.encode("utf-8"), content_type="application/json")
 
 
-async def upload_text(container: str, blob_path: str, text: str) -> None:
-    await upload_blob(
-        container, blob_path, text.encode("utf-8"),
-        content_type="text/plain; charset=utf-8",
-    )
-
-
-async def delete_blob(container: str, blob_path: str) -> None:
-    blob = _get_client().get_blob_client(container, blob_path)
-    try:
-        await blob.delete_blob()
-    except ResourceNotFoundError:
-        pass
+async def upload_text(container, blob_path, text):
+    await upload_blob(container, blob_path, text.encode("utf-8"), content_type="text/plain; charset=utf-8")
