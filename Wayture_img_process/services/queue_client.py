@@ -1,15 +1,10 @@
 from __future__ import annotations
 
-import base64
 import json
-import os
 
 from azure.storage.queue import QueueClient
-from dotenv import load_dotenv
 
-load_dotenv()
-
-STORAGE_ACCOUNT = os.getenv("STORAGE_ACCOUNT", "wayturestorage")
+STORAGE_ACCOUNT = "wayturestorage"
 QUEUE_NAME = "image-tasks"
 
 _client: QueueClient | None = None

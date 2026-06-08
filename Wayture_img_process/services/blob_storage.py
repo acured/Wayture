@@ -1,15 +1,11 @@
 from __future__ import annotations
 
 import json
-import os
 
 from azure.storage.blob.aio import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
-from dotenv import load_dotenv
 
-load_dotenv()
-
-STORAGE_ACCOUNT = os.getenv("STORAGE_ACCOUNT", "wayturestorage")
+STORAGE_ACCOUNT = "wayturestorage"
 
 _client: BlobServiceClient | None = None
 
