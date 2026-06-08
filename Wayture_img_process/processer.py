@@ -41,17 +41,29 @@ def log(stage: str, msg: str):
 # ── Blob 读取（只读，async）────────────────────────────────────
 
 _blob_client = None
+_blob_credential = None
 
 def _get_blob_client():
-    global _blob_client
+    global _blob_client, _blob_credential
     if _blob_client is None:
         from azure.identity.aio import DefaultAzureCredential
         from azure.storage.blob.aio import BlobServiceClient
+        _blob_credential = DefaultAzureCredential()
         _blob_client = BlobServiceClient(
             account_url=f"https://{STORAGE_ACCOUNT}.blob.core.windows.net",
-            credential=DefaultAzureCredential(),
+            credential=_blob_credential,
         )
     return _blob_client
+
+
+async def close_blob_client():
+    global _blob_client, _blob_credential
+    if _blob_client is not None:
+        await _blob_client.close()
+        _blob_client = None
+    if _blob_credential is not None:
+        await _blob_credential.close()
+        _blob_credential = None
 
 
 async def download_blob(container: str, blob_path: str) -> bytes:
@@ -229,6 +241,8 @@ async def main():
         log("CRASH", "执行失败")
         traceback.print_exc()
         sys.exit(1)
+    finally:
+        await close_blob_client()
 
     log("END", "完成")
 
