@@ -13,10 +13,10 @@ blob_tool.py — Azure Blob Storage 交互式浏览器
 """
 from __future__ import annotations
 
-import ctypes
-import msvcrt
 import os
 import sys
+import tty
+import termios
 from pathlib import Path
 
 STORAGE_ACCOUNT = "wayturestorage"
@@ -24,30 +24,28 @@ DEFAULT_CONTAINER = "data"
 DOWNLOAD_DIR = Path(__file__).resolve().parent / "debug_output"
 
 
-def _enable_ansi():
-    kernel32 = ctypes.windll.kernel32
-    kernel32.GetStdHandle.restype = ctypes.c_void_p
-    h = kernel32.GetStdHandle(-11)
-    mode = ctypes.c_ulong()
-    kernel32.GetConsoleMode(h, ctypes.byref(mode))
-    kernel32.SetConsoleMode(h, mode.value | 4)
-
-
 def _read_key():
-    ch = msvcrt.getch()
-    if ch in (b"\xe0", b"\x00"):
-        code = msvcrt.getch()
-        return {b"H": "up", b"P": "down"}.get(code)
-    if ch == b"\r":
-        return "enter"
-    if ch == b"\x08":
-        return "backspace"
-    if ch in (b"\x1b", b"\x03"):
-        return "quit"
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
     try:
-        return ch.decode()
-    except Exception:
-        return None
+        tty.setraw(fd)
+        ch = sys.stdin.read(1)
+        if ch == "\x1b":
+            seq = sys.stdin.read(2)
+            if seq == "[A":
+                return "up"
+            if seq == "[B":
+                return "down"
+            return "quit"
+        if ch == "\r":
+            return "enter"
+        if ch == "\x7f" or ch == "\x08":
+            return "backspace"
+        if ch == "\x03":
+            return "quit"
+        return ch
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
 def _fmt_size(n):
@@ -88,11 +86,13 @@ class BlobBrowser:
                     if item.last_modified
                     else ""
                 )
-                files.append(("file", item.name, item.size, mt))
+                files.append(("file", item.name, item.size, mt, item.last_modified))
             else:
-                dirs.append(("dir", item.name, 0, ""))
+                dirs.append(("dir", item.name, 0, "", None))
         dirs.sort(key=lambda x: x[1])
-        files.sort(key=lambda x: x[1])
+        files.sort(key=lambda x: (x[4] or ""), reverse=True)
+        dirs = [(k, n, s, m) for k, n, s, m, _ in dirs]
+        files = [(k, n, s, m) for k, n, s, m, _ in files]
         self.items = dirs + files
         self.cur = 0
         self.scroll = 0
@@ -130,7 +130,7 @@ class BlobBrowser:
         end = min(self.scroll + usable, len(self.items))
         for i in range(self.scroll, end):
             kind, name, size, mt = self.items[i]
-            short = name[len(self.prefix) :] if self.prefix else name
+            short = name[len(self.prefix):] if self.prefix else name
             if kind == "dir":
                 label = f"[DIR] {short}"
                 detail = ""
@@ -188,7 +188,6 @@ class BlobBrowser:
             self.status = f"download failed: {e}"
 
     def run(self):
-        _enable_ansi()
         self._load()
         while True:
             self._render()
