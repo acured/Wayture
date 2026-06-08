@@ -13,11 +13,11 @@ _client: BlobServiceClient | None = None
 def _get_client() -> BlobServiceClient:
     global _client
     if _client is None:
-        from azure.identity.aio import DefaultAzureCredential
+        from azure.identity.aio import ManagedIdentityCredential
 
         _client = BlobServiceClient(
             account_url=f"https://{STORAGE_ACCOUNT}.blob.core.windows.net",
-            credential=DefaultAzureCredential(),
+            credential=ManagedIdentityCredential(),
         )
     return _client
 

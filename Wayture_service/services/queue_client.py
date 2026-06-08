@@ -14,12 +14,12 @@ _client: QueueClient | None = None
 def _get_client() -> QueueClient:
     global _client
     if _client is None:
-        from azure.identity import DefaultAzureCredential
+        from azure.identity import ManagedIdentityCredential
 
         _client = QueueClient(
             account_url=f"https://{STORAGE_ACCOUNT}.queue.core.windows.net",
             queue_name=QUEUE_NAME,
-            credential=DefaultAzureCredential(),
+            credential=ManagedIdentityCredential(),
         )
     return _client
 
