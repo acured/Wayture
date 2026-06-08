@@ -172,9 +172,8 @@ async def api_upload_image(
     img.save(buf, format="JPEG", quality=85)
     while buf.tell() > TARGET_SIZE:
         scale = (TARGET_SIZE / buf.tell()) ** 0.5
-        new_w = max(int(img.width * scale), 256)
-        new_h = max(int(img.height * scale), 256)
-        img = img.resize((new_w, new_h), Image.LANCZOS)
+        new_dim = max(int(max(img.size) * scale), 256)
+        img.thumbnail((new_dim, new_dim), Image.LANCZOS)
         buf = BytesIO()
         img.save(buf, format="JPEG", quality=80)
     content = buf.getvalue()
