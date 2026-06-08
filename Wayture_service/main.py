@@ -167,13 +167,15 @@ async def api_upload_image(
     if max(img.size) > max_dim:
         img.thumbnail((max_dim, max_dim), Image.LANCZOS)
 
-    quality = 85
-    while quality >= 30:
+    buf = BytesIO()
+    img.save(buf, format="JPEG", quality=85)
+    while buf.tell() > TARGET_SIZE:
+        scale = (TARGET_SIZE / buf.tell()) ** 0.5
+        new_w = max(int(img.width * scale), 256)
+        new_h = max(int(img.height * scale), 256)
+        img = img.resize((new_w, new_h), Image.LANCZOS)
         buf = BytesIO()
-        img.save(buf, format="JPEG", quality=quality)
-        if buf.tell() <= TARGET_SIZE:
-            break
-        quality -= 5
+        img.save(buf, format="JPEG", quality=80)
     content = buf.getvalue()
 
     await upload_blob("data", f"{username}/photos/{safe_name}", content, content_type="image/jpeg")
