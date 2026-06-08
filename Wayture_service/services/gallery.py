@@ -8,7 +8,6 @@ from io import BytesIO
 from PIL import Image
 
 from models import AlbumPromptSpec, MemoryImageMeta, MemoryMeta, PhotoMeta
-from services.ai import generate_image
 from services.blob_storage import download_blob, upload_blob
 from services.config import get_prompts, render_prompt
 
@@ -92,6 +91,8 @@ async def execute_gallery_task(username: str, task_data: dict) -> dict:
     memory_id = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S") + "_" + uuid.uuid4().hex[:6]
     memory_images: list[MemoryImageMeta] = []
 
+    from services.ai import generate_image
+
     for idx, sub in enumerate(task_data["sub_tasks"], 1):
         image_bytes_list = await generate_image(
             prompt=sub["prompt"],
@@ -148,6 +149,7 @@ async def execute_journal_task(username: str, task_data: dict) -> dict:
         except Exception:
             pass
 
+    from services.ai import generate_image
     image_bytes_list = await generate_image(
         prompt=task_data["prompt"],
         size=task_data.get("size", "1024x1024"),

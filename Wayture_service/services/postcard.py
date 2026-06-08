@@ -7,7 +7,7 @@ import uuid
 from pathlib import Path
 
 from models import Attraction, PlannedStop, PostcardResponse
-from services.ai import chat_completion, generate_image
+from services.ai import chat_completion
 from services.blob_storage import upload_blob, upload_text, read_json
 from services.config import get_map_meta, get_prompts, render_prompt
 
@@ -244,6 +244,7 @@ async def execute_postcard_task(username: str, task_data: dict) -> dict:
         if full_path.exists():
             input_images.append(full_path.read_bytes())
 
+    from services.ai import generate_image
     image_bytes_list = await generate_image(
         prompt=prompt, size=size, input_images=input_images or None,
     )
